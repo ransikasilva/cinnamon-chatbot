@@ -1,0 +1,56 @@
+[tool.black]
+exclude = "/templates/"
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 88
+known_first_party = ["src"]
+default_section = "THIRDPARTY"
+
+[tool.liccheck]
+authorized_licenses = [
+    "bsd",
+    "new bsd",
+    "bsd license",
+    "new bsd license",
+    "simplified bsd",
+    "apache",
+    "apache 2.0",
+    "apache 2",
+    "apache software license",
+    "apache software license (apache 2.0)",
+    "apache software",
+    "apache license 2.0",
+    "gnu lgpl",
+    "lgpl with exceptions or zpl",
+    "isc license",
+    "isc license (iscl)",
+    "mit",
+    "mit license",
+    "MIT License\r",
+    "python software foundation license",
+    "Python Software Foundation",
+    "zpl 2.1",
+    "mpl-2.0",
+    "mpl 2.0",
+    "psfl",
+    "psf"
+]
+unauthorized_licenses = [
+    "gpl v3"
+]
+
+[tool.liccheck.authorized_packages]
+uuid = "<=1.30"
+kedro = "==0.14.1"
+pygeohash = "==1.2.0"
+nbstripout = "==0.3.3"
+chardet = "==3.0.4"
+
+[tool.coverage.report]
+fail_under = 30
+show_missing = true
+exclude_lines = ["pragma: no cover", "raise NotImplementedError"]

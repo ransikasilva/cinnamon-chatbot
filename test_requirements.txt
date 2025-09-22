@@ -1,0 +1,16 @@
+bandit
+black==18.9b0
+click==6.7
+flake8==3.7.7
+isort==4.2.5
+isort-black-compat
+liccheck
+pre-commit
+pylint==2.3.1
+pylon
+pytest==4.6
+pytest-cov==2.6.1
+pytest-mock==3.1.0
+urllib3==1.25.11
+virtualenv==20.0.33
+wheel==0.32.2

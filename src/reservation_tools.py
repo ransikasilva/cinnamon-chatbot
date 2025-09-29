@@ -155,13 +155,13 @@ def set_destination_preference(destination: str) -> str:
     elif 'maldives' in destination.lower():
         destination_clean = "Maldives"
     
-    if destination_clean not in ["Sri Lanka", "Maldives"]:
-        return """I specialize in two amazing destinations:
+#     if destination_clean not in ["Sri Lanka", "Maldives"]:
+#         return """I specialize in two amazing destinations:
 
-**Sri Lanka** - Cultural diversity, beautiful beaches, and wildlife
-**Maldives** - Luxury overwater villas and pristine atolls
+# **Sri Lanka** - Cultural diversity, beautiful beaches, and wildlife
+# **Maldives** - Luxury overwater villas and pristine atolls
 
-Which of these tropical paradises would you like to explore?"""
+# Which of these tropical paradises would you like to explore?"""
     
     reservation_state['location'] = destination_clean
     reservation_state['step'] = 'property_selection'

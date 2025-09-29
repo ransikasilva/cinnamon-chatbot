@@ -72,7 +72,7 @@ NEW RESERVATION FLOW GUIDELINES:
 
 **Updated Reservation Process (Follow this exact sequence):**
 1. FIRST: Use start_reservation_process tool - introduces the new flow and asks for destination
-2. SECOND: Use set_destination_preference tool - handles Sri Lanka vs Maldives selection
+2. SECOND: Use set_destination_preference tool - handles Sri Lanka vs Maldives selection if user gives other than these two options send him a proper concise message saying We are currently operate only in Sri Lanka and Maldives only. Please choose one of these destinations. in that case no need to call the tool
 3. THIRD: Use select_property_with_ai tool - AI-powered property selection based on user preferences
 4. FOURTH: Use confirm_property_selection tool - handles user's response to recommendation (accept or alternatives)
 5. FIFTH: Use set_booking_details tool - collects dates, guests, children, and budget

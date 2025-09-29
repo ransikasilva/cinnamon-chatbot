@@ -141,6 +141,7 @@ Which destination calls to your heart? You can choose using the buttons above or
 @tool
 def set_destination_preference(destination: str) -> str:
     """Set the user's preferred destination (Sri Lanka or Maldives)"""
+    print(f"DEBUG:Tool Input: {destination}")
     sync_from_session_state()
     reservation_state = get_reservation_state()
     

@@ -8,7 +8,10 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
 from models import get_llm
 import streamlit as st
+import warnings
 
+# Suppress the specific warning
+warnings.filterwarnings('ignore', message='.*ScriptRunContext.*')
 # Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -199,7 +202,7 @@ with chat_container:
         if role == "assistant" and message.content.strip() == "":
             continue  # Skip empty assistant messages
         with st.chat_message(role):
-            st.markdown(message.content)
+            st.markdown(message.content,unsafe_allow_html=True)
         
 
 # Check if we should show option buttons
@@ -338,19 +341,19 @@ if st.session_state.reservation_state['step'] is not None:
         
         # Show recommended property info if available
         recommended_property = st.session_state.reservation_state.get('recommended_property')
-        if recommended_property:
-            st.info(f"💡 I've recommended **{recommended_property}** based on your preferences!")
+        # if recommended_property:
+        #     st.info(f"💡 I've recommended **{recommended_property}** based on your preferences!")
         
         col1, col2 = st.columns(2)
         with col1:
             if st.button("✅ Yes, let's book this!", key="confirm_property", use_container_width=True):
                 user_input = "Yes, let's book this"
-                st.success("✅ Property confirmed! Let's proceed with booking details.")
+                # st.success("✅ Property confirmed! Let's proceed with booking details.")
                 
         with col2:
             if st.button("🔍 Show me alternatives", key="show_alternatives", use_container_width=True):
                 user_input = "Show me alternatives"
-                st.info("🔍 Let me show you other available options...")
+                # st.info("🔍 Let me show you other available options...")
         
         st.markdown("**Or tell me more about what you're looking for in the chat below!**")
 

@@ -1,7 +1,7 @@
 from langchain_core.tools import tool
 
 
-@tool 
+@tool
 def change_existing_booking(booking_id: str, change_request: str) -> str:
     """Handle changes to existing bookings."""
     return f"""I'd be happy to help you modify your booking (ID: {booking_id}).

@@ -6,27 +6,29 @@ def get_hotel_info(query: str = None) -> str:
     """Get information about our hotels and properties."""
     try:
         properties = []
-        
-        info_text = "🏨 **Welcome to Cinnamon Hotels!** Here are our beautiful properties:\n\n"
-        
+
+        info_text = (
+            "🏨 **Welcome to Cinnamon Hotels!** Here are our beautiful properties:\n\n"
+        )
+
         for prop in properties:
             info_text += f"**{prop['name']}**\n"
             info_text += f"📍 {prop['location']}\n"
             info_text += f"{prop['description']}\n"
             info_text += f"✨ Features: {', '.join(prop['features'])}\n\n"
-        
+
         info_text += "Would you like to know more about a specific property or make a reservation?"
         return info_text
     except Exception as e:
         return "I can tell you about our two beautiful properties: Cinnamon Bey Beruwala (beachfront resort) and Cinnamon Lakeside Colombo (city hotel). Which would you like to know more about?"
 
 
-@tool 
+@tool
 def handle_general_query(question: str) -> str:
     """Handle general questions about hotels, services, policies, etc."""
     question_lower = question.lower()
-    
-    if any(word in question_lower for word in ['policy', 'cancel', 'refund']):
+
+    if any(word in question_lower for word in ["policy", "cancel", "refund"]):
         return """📋 **Hotel Policies:**
 
 **Cancellation Policy:**
@@ -44,7 +46,7 @@ def handle_general_query(question: str) -> str:
 
 For specific policy questions, please contact us at reservations@cinnamonhotels.com"""
 
-    elif any(word in question_lower for word in ['dining', 'restaurant', 'food']):
+    elif any(word in question_lower for word in ["dining", "restaurant", "food"]):
         return """🍽️ **Dining Options:**
 
 **Cinnamon Bey Beruwala:**
@@ -61,7 +63,9 @@ For specific policy questions, please contact us at reservations@cinnamonhotels.
 
 Would you like specific information about our dining experiences?"""
 
-    elif any(word in question_lower for word in ['amenities', 'facilities', 'services']):
+    elif any(
+        word in question_lower for word in ["amenities", "facilities", "services"]
+    ):
         return """🏨 **Hotel Amenities:**
 
 **Common Features:**

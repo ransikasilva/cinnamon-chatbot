@@ -40,7 +40,7 @@ if "reservation_state" not in st.session_state:
 
 from reservation_tools import (
     start_reservation_process, set_destination_preference, select_property_with_ai,
-    confirm_property_selection, set_booking_details, check_availability_and_show_rooms, 
+    confirm_property_selection, show_property_alternatives, set_booking_details, check_availability_and_show_rooms, 
     select_room_type, select_meal_plan, confirm_final_reservation, 
     sync_from_session_state, sync_to_session_state
 )
@@ -83,11 +83,13 @@ NEW RESERVATION FLOW GUIDELINES:
 9. FINAL: Use confirm_final_reservation tool - shows summary and confirms booking
 
 
-**IMPORTANT: Property Confirmation Step:**
+**IMPORTANT: Property Selection Flow:**
 - After select_property_with_ai provides a recommendation, ALWAYS use confirm_property_selection tool next
-- When user says "Yes, let's book this" or similar acceptance phrases, use confirm_property_selection tool
-- When user says "Show me alternatives" or wants other options, use confirm_property_selection tool  
-- This tool handles the transition from property_confirmation to booking_details step
+- When user accepts/confirms (yes, sounds good, perfect, etc.), use confirm_property_selection with "book this" as argument
+- When user wants alternatives/other options, use show_property_alternatives tool
+- After show_property_alternatives, when user selects a property, use confirm_property_selection tool
+- When user asks for details, use confirm_property_selection with "details" as argument
+- LLM should interpret user intent and pass standardized arguments (no hardcoded keyword matching in tools)
 
 **For Option 2 (Change Booking):**
 - Ask for booking reference number
@@ -125,7 +127,7 @@ def get_cached_llm_with_tools():
     llm = get_llm()
     tools = [
         start_reservation_process, set_destination_preference, select_property_with_ai,
-        confirm_property_selection, set_booking_details, check_availability_and_show_rooms, 
+        confirm_property_selection, show_property_alternatives, set_booking_details, check_availability_and_show_rooms, 
         select_room_type, select_meal_plan, confirm_final_reservation,
         get_hotel_info, change_existing_booking, handle_general_query
     ]

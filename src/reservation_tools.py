@@ -11,7 +11,7 @@ import json
 _global_reservation_state = {
     'step': None,
     'location': None,           # Sri Lanka or Maldives
-    'property_type': None,      # coastal, city, cultural, budget, premium
+    'property_type': None,      
     'property': None,           # Selected hotel name
     'recommended_property': None,  # LLM recommended property
     'recommended_property_data': None,  # Full hotel data for recommendation
@@ -671,230 +671,254 @@ RESPOND ONLY WITH VALID JSON, NO OTHER TEXT."""
 
 
 @tool
-def confirm_property_selection(user_response: str) -> str:
-    """Handle user's response to property recommendation - single selection, multiple choice, or alternatives"""
+def show_property_alternatives() -> str:
+    """Show all available properties when user requests alternatives to the current recommendation"""
     sync_from_session_state()
     reservation_state = get_reservation_state()
     
     if reservation_state['step'] not in ['property_confirmation', 'property_selection']:
         return "Please wait for a property recommendation first."
     
-    user_response_lower = user_response.lower()
-    recommended_hotels = reservation_state.get('recommended_hotels', [])
+    location = reservation_state.get('location')
+    if not location:
+        return "Please select your destination first."
     
-    # Handle selection by number (for multiple recommendations in both property_selection and property_confirmation)
-    import re
-    number_match = re.search(r'\b(\d+)\b', user_response)
-    if number_match and len(recommended_hotels) > 1:
-        choice_num = int(number_match.group(1))
-        if 1 <= choice_num <= len(recommended_hotels):
-            selected_hotel = recommended_hotels[choice_num - 1]
-            reservation_state['property'] = selected_hotel['Name']
-            reservation_state['recommended_property'] = selected_hotel['Name']
-            reservation_state['recommended_property_data'] = selected_hotel
-            reservation_state['step'] = 'booking_details'
-            sync_to_session_state()
-            
-            return f"""Excellent choice! 🎉 **{selected_hotel['Name']}** it is!
-
-Now let's plan your perfect stay. I need to know:
-
-📅 **Travel Dates** - When would you like to check in and check out?
-👥 **Guests** - How many adults and children?  
-🛏️ **Rooms** - How many rooms do you need?
-💰 **Budget** - What's your preferred budget range per night?
-
-You can tell me all at once like:
-*"January 15-20, 2025 for 2 adults and 1 child, 1 room, budget $300-500 per night"*
-
-Or let's start with your travel dates - when would you like to visit?"""
-    
-    # Handle selection by name (for multiple recommendations in both steps)
-    if len(recommended_hotels) > 1:
-        for hotel in recommended_hotels:
-            hotel_name = hotel.get('Name', '').lower()
-            if hotel_name in user_response_lower or any(word in hotel_name for word in user_response_lower.split() if len(word) > 3):
-                reservation_state['property'] = hotel['Name']
-                reservation_state['recommended_property'] = hotel['Name']
-                reservation_state['recommended_property_data'] = hotel
-                reservation_state['step'] = 'booking_details'
-                sync_to_session_state()
-                
-                return f"""Perfect! 🎉 **{hotel['Name']}** is an excellent choice!
-
-Now let's plan your perfect stay. I need to know:
-
-📅 **Travel Dates** - When would you like to check in and check out?
-👥 **Guests** - How many adults and children?  
-🛏️ **Rooms** - How many rooms do you need?
-💰 **Budget** - What's your preferred budget range per night?
-
-You can tell me all at once or let's start with your travel dates - when would you like to visit?"""
-    
-    # Handle "tell me more" requests
-    if 'tell me more' in user_response_lower or 'more about' in user_response_lower or 'details' in user_response_lower:
-        if len(recommended_hotels) > 1:
-            # For multiple hotels, try to identify which one they want details about
-            for hotel in recommended_hotels:
-                hotel_name = hotel.get('Name', '').lower()
-                if hotel_name in user_response_lower:
-                    return f"""**{hotel['Name']}** - Detailed Information:
-
-📍 **Location:** {hotel.get('Location', '')}
-🏨 **Type:** {hotel.get('Type', '')}
-
-**Description:**
-{hotel.get('UniqueDescription', '')}
-
-**Available Room Types:**
-{chr(10).join(['• ' + room.get('RoomType', '') for room in hotel.get('RoomTypes', [])[:3]])}
-
-Would you like to book this property, or would you prefer to see the other options again?"""
-            
-            return "Which property would you like to know more about? Please mention the hotel name from the options above."
+    try:
+        # Load hotel data
+        metadata_path = os.path.join(os.path.dirname(__file__), 'data', 'metadata.json')
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
         
-        elif reservation_state.get('recommended_property_data'):
-            # Single hotel details
-            hotel = reservation_state['recommended_property_data']
-            return f"""**{hotel['Name']}** - Detailed Information:
-
-📍 **Location:** {hotel.get('Location', '')}
-🏨 **Type:** {hotel.get('Type', '')}
-
-**Description:**
-{hotel.get('UniqueDescription', '')}
-
-**Available Room Types:**
-{chr(10).join(['• ' + room.get('RoomType', '') for room in hotel.get('RoomTypes', [])[:3]])}
-
-Ready to book this property?"""
-    
-    # Check if user wants to proceed with the (single) recommendation
-    if any(phrase in user_response_lower for phrase in [
-        'yes', 'perfect', 'proceed', 'book this', 'looks good', 'great', 
-        'that works', 'sounds perfect', 'i like it', 'go ahead'
-    ]):
-        # User accepts the recommendation
-        recommended_property = reservation_state.get('recommended_property')
-        if recommended_property:
-            reservation_state['property'] = recommended_property
-            reservation_state['step'] = 'booking_details'
-            sync_to_session_state()
-            
-            return f"""Excellent choice! 🎉 **{recommended_property}** it is!
-
-Now let's plan your perfect stay. I need to know:
-
-📅 **Travel Dates** - When would you like to check in and check out?
-👥 **Guests** - How many adults and children?  
-🛏️ **Rooms** - How many rooms do you need?
-💰 **Budget** - What's your preferred budget range per night?
-
-You can tell me all at once like:
-*"January 15-20, 2025 for 2 adults and 1 child, 1 room, budget $300-500 per night"*
-
-Or let's start with your travel dates - when would you like to visit?"""
+        hotels_data = metadata.get('HotelsAndResorts', [])
+        price_mapping = metadata.get('PriceMapping', {})
         
-        # If no single recommendation but multiple options, ask for clarification
-        elif len(recommended_hotels) > 1:
-            hotels_list = "\n".join([f"{i+1}. {hotel.get('Name', '')}" for i, hotel in enumerate(recommended_hotels)])
-            return f"""I'd love to help you proceed! Which of these properties would you like to book?
-
-{hotels_list}
-
-Please choose by number or name!"""
-    
-    # Check if user wants alternatives or has different preferences  
-    elif any(phrase in user_response_lower for phrase in [
-        'alternatives', 'different', 'other options', 'something else', 
-        'show me more', 'not quite', 'maybe something', 'other hotels', 'all alternatives'
-    ]):
-        # Show complete alternatives list
-        import json
-        import os
+        # Filter by location using the existing function
+        location_hotels = filter_hotels_by_location_and_type(hotels_data, location)
         
-        try:
-            metadata_path = os.path.join(os.path.dirname(__file__), 'data', 'metadata.json')
-            with open(metadata_path, 'r') as f:
-                metadata = json.load(f)
-            
-            hotels_data = metadata.get('HotelsAndResorts', [])
-            price_mapping = metadata.get('PriceMapping', {})
-            
-            # Filter by location using the new function
-            location = reservation_state.get('location')
-            location_hotels = filter_hotels_by_location_and_type(hotels_data, location)
-            
-            # Create alternatives list
-            alternatives_text = f"Here are all our available properties in {location}:\n\n"
-            
-            for i, hotel in enumerate(location_hotels, 1):
-                room_types = hotel.get('RoomTypes', [])
-                if room_types:
-                    prices = [price_mapping.get(room.get('Price', ''), 0) for room in room_types]
-                    valid_prices = [p for p in prices if p > 0]
-                    if valid_prices:
-                        price_range = f"${min(valid_prices)}-${max(valid_prices)}/night"
-                    else:
-                        price_range = "Contact for pricing"
+        if not location_hotels:
+            return f"I'm sorry, no properties are available for {location} at the moment."
+        
+        # Store all location hotels for future selection
+        reservation_state['all_location_hotels'] = location_hotels
+        reservation_state['step'] = 'property_selection'  # Set to selection mode
+        sync_to_session_state()
+        
+        # Create alternatives list
+        alternatives_text = f"Here are all our available properties in {location}:\n\n"
+        
+        for i, hotel in enumerate(location_hotels, 1):
+            room_types = hotel.get('RoomTypes', [])
+            if room_types:
+                prices = [price_mapping.get(room.get('Price', ''), 0) for room in room_types]
+                valid_prices = [p for p in prices if p > 0]
+                if valid_prices:
+                    price_range = f"${min(valid_prices)}-${max(valid_prices)}/night"
                 else:
                     price_range = "Contact for pricing"
-                
-                alternatives_text += f"""**{i}. {hotel.get('Name', '')}**
+            else:
+                price_range = "Contact for pricing"
+            
+            alternatives_text += f"""**{i}. {hotel.get('Name', '')}**
 📍 {hotel.get('Location', '')}
 💰 {price_range}
 {hotel.get('UniqueDescription', '')}
 
 """
-            
-            alternatives_text += """Please tell me:
+        
+        alternatives_text += """Please tell me:
 • **Which property interests you most?** (by number or name)
 • **What specific features** you're looking for
 • **Your budget preference** or any other requirements
 
-Or describe what you'd like differently from my recommendations!"""
-            
-            reservation_state['step'] = 'property_selection'  # Go back to selection
-            sync_to_session_state()
-            return alternatives_text
-            
-        except Exception as e:
-            reservation_state['step'] = 'property_selection'
-            sync_to_session_state()
-            return """Let me help you find something different! Please tell me more about what you're looking for:
+I'll help you select the perfect property for your stay!"""
+        
+        return alternatives_text
+        
+    except Exception as e:
+        print(f"Error loading alternatives: {e}")
+        return "I'm sorry, I encountered an error loading the available properties. Please try again."
 
-• What type of experience do you want?
-• Any specific location preferences?
-• Budget considerations?
-• Special amenities or features?
 
-I'll find you the perfect match based on your preferences!"""
+@tool
+def confirm_property_selection(selection_type: str, hotel_identifier: str = "") -> str:
+    """
+    Handle user's response to property recommendation OR selection from alternatives list.
     
-    else:
-        # User response is unclear, provide appropriate guidance
-        if len(recommended_hotels) > 1:
-            hotels_list = "\n".join([f"{i+1}. {hotel.get('Name', '')}" for i, hotel in enumerate(recommended_hotels)])
-            return f"""I want to make sure I understand your choice! 
-
-**Available properties:**
-{hotels_list}
-
-You can:
-• **Choose by number** (1, 2, 3, etc.)
-• **Choose by name** 
-• Say *"Tell me more about [hotel name]"* for details
-• Say *"Show me all alternatives"* for complete list
-
-Which property interests you most?"""
+    Args:
+        selection_type (str): Type of user action - must be one of:
+            - "confirm": User wants to book the recommended property
+            - "select_by_name": User selects a specific hotel by name
+            - "select_by_number": User selects a hotel by number from list
+            - "details": User wants more information about a property
+            
+        hotel_identifier (str): Context-dependent identifier:
+            - For "confirm": pass "confirmed" (value ignored, just confirmation intent)
+            - For "select_by_name": exact hotel name (e.g., "Cinnamon Grand Colombo")
+            - For "select_by_number": number as string (e.g., "1", "2", "3")
+            - For "details": hotel name OR number for details request
+    
+    Returns:
+        str: Response message with booking confirmation, hotel details, or error message
+        
+    Usage Examples:
+        # User confirms recommended property: "Yes, I'll book it"
+        confirm_property_selection("confirm", "confirmed")
+        
+        # User selects by number: "I want option 2"  
+        confirm_property_selection("select_by_number", "2")
+        
+        # User selects by name: "I want to book Cinnamon Grand"
+        confirm_property_selection("select_by_name", "Cinnamon Grand")
+        
+        # User asks for details: "Tell me more about hotel 1"
+        confirm_property_selection("details", "1")
+        
+        # User asks for details by name: "What about Cinnamon Lakeside?"
+        confirm_property_selection("details", "Cinnamon Lakeside")
+    
+    Note: 
+        The LLM should interpret user intent and map it to the appropriate parameters.
+        No matter how the user phrases their request, standardize it to these clear parameters.
+    """
+    sync_from_session_state()
+    reservation_state = get_reservation_state()
+    
+    if reservation_state['step'] not in ['property_confirmation', 'property_selection']:
+        return "Please wait for a property recommendation first."
+    
+    recommended_hotels = reservation_state.get('recommended_hotels', [])
+    all_location_hotels = reservation_state.get('all_location_hotels', [])
+    
+    # Validate input parameters
+    valid_selection_types = ["confirm", "select_by_name", "select_by_number", "details"]
+    if selection_type not in valid_selection_types:
+        return f"Invalid selection type. Must be one of: {', '.join(valid_selection_types)}"
+    
+    # HANDLE CONFIRMATION (for recommended properties)
+    if selection_type == "confirm":
+        if reservation_state['step'] == 'property_confirmation':
+            recommended_property_data = reservation_state.get('recommended_property_data')
+            if recommended_property_data:
+                return proceed_with_booking(recommended_property_data, reservation_state)
+            else:
+                return "I don't have a current recommendation. Please start the property selection again."
         else:
-            return """I want to make sure I understand correctly! 
+            return "No property recommendation to confirm. Please make a selection first."
+    
+    # HANDLE SELECTION BY NUMBER
+    elif selection_type == "select_by_number":
+        try:
+            choice_num = int(hotel_identifier)
+        except ValueError:
+            return "Invalid number format. Please provide a valid number."
+        
+        # From alternatives list
+        if all_location_hotels and reservation_state['step'] == 'property_selection':
+            if 1 <= choice_num <= len(all_location_hotels):
+                selected_hotel = all_location_hotels[choice_num - 1]
+                return proceed_with_booking(selected_hotel, reservation_state)
+            else:
+                return f"Invalid selection. Please choose a number between 1 and {len(all_location_hotels)}."
+        
+        # From multiple recommendations
+        elif len(recommended_hotels) > 1:
+            if 1 <= choice_num <= len(recommended_hotels):
+                selected_hotel = recommended_hotels[choice_num - 1]
+                return proceed_with_booking(selected_hotel, reservation_state)
+            else:
+                return f"Invalid selection. Please choose a number between 1 and {len(recommended_hotels)}."
+        
+        else:
+            return "No numbered list available. Please select by hotel name instead."
+    
+    # HANDLE SELECTION BY NAME
+    elif selection_type == "select_by_name":
+        hotel_name_lower = hotel_identifier.lower()
+        
+        # Search in alternatives list first
+        if all_location_hotels and reservation_state['step'] == 'property_selection':
+            for hotel in all_location_hotels:
+                if hotel_name_lower in hotel.get('Name', '').lower() or hotel.get('Name', '').lower() in hotel_name_lower:
+                    return proceed_with_booking(hotel, reservation_state)
+        
+        # Search in recommended hotels
+        elif recommended_hotels:
+            for hotel in recommended_hotels:
+                if hotel_name_lower in hotel.get('Name', '').lower() or hotel.get('Name', '').lower() in hotel_name_lower:
+                    return proceed_with_booking(hotel, reservation_state)
+        
+        # If not found
+        available_hotels = all_location_hotels or recommended_hotels
+        if available_hotels:
+            hotel_list = ", ".join([hotel.get('Name', '') for hotel in available_hotels])
+            return f"Hotel '{hotel_identifier}' not found. Available options: {hotel_list}"
+        else:
+            return "No hotels available for selection. Please start the process again."
+    
+    # HANDLE DETAILS REQUEST
+    elif selection_type == "details":
+        target_hotel = None
+        
+        # If hotel_identifier is a number, get hotel by index
+        try:
+            choice_num = int(hotel_identifier)
+            available_list = all_location_hotels or recommended_hotels
+            if available_list and 1 <= choice_num <= len(available_list):
+                target_hotel = available_list[choice_num - 1]
+        except ValueError:
+            # If not a number, search by name
+            hotel_name_lower = hotel_identifier.lower()
+            available_list = all_location_hotels or recommended_hotels or [reservation_state.get('recommended_property_data')]
+            
+            for hotel in available_list:
+                if hotel and (hotel_name_lower in hotel.get('Name', '').lower() or hotel.get('Name', '').lower() in hotel_name_lower):
+                    target_hotel = hotel
+                    break
+        
+        # Return details if hotel found
+        if target_hotel:
+            return f"""**{target_hotel['Name']}** - Detailed Information:
 
-Would you like to:
-• **Continue with the recommendation** - Say "Yes, let's book this" 
-• **See other options** - Say "Show me alternatives"
-• **Tell me more** about the recommended property
+📍 **Location:** {target_hotel.get('Location', '')}
+🏨 **Type:** {target_hotel.get('Type', '')}
 
-What would you prefer?"""
+**Description:**
+{target_hotel.get('UniqueDescription', '')}
+
+**Available Room Types:**
+{chr(10).join(['• ' + room.get('RoomType', '') for room in target_hotel.get('RoomTypes', [])[:3]])}
+
+Would you like to book this property?"""
+        else:
+            return f"Could not find details for '{hotel_identifier}'. Please check the hotel name or number."
+    
+    # Fallback
+    return "Unable to process your selection. Please try again with valid parameters."
+
+
+def proceed_with_booking(selected_hotel, reservation_state):
+    """Helper function to proceed with booking for a selected hotel"""
+    reservation_state['property'] = selected_hotel['Name']
+    reservation_state['recommended_property'] = selected_hotel['Name']
+    reservation_state['recommended_property_data'] = selected_hotel
+    reservation_state['step'] = 'booking_details'
+    # Clear alternatives list since selection is made
+    reservation_state['all_location_hotels'] = []
+    sync_to_session_state()
+    
+    return f"""Excellent choice! 🎉 **{selected_hotel['Name']}** it is!
+
+Now let's plan your perfect stay. I need to know:
+
+📅 **Travel Dates** - When would you like to check in and check out?
+👥 **Guests** - How many adults and children?  
+🛏️ **Rooms** - How many rooms do you need?
+💰 **Budget** - What's your preferred budget range per night?
+
+You can tell me all at once like:
+*"January 15-20, 2025 for 2 adults and 1 child, 1 room, budget $300-500 per night"*
+
+Or let's start with your travel dates - when would you like to visit?"""
 
 @tool
 def set_booking_details(booking_info: str) -> str:

@@ -3,9 +3,15 @@ import json
 from datetime import datetime, timedelta
 from typing import Dict, List
 import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 # Room types will be loaded from metadata.json and room_mapping.json
 ROOM_TYPE_DESCRIPTIONS = {}
-
+base_dir = (os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+metadata_path = os.path.join(base_dir, "data", "metadata.json")
+room_mapping_path = os.path.join(base_dir, "data", "room_mapping.json")
+booking_data_path = os.path.join(base_dir, "data", "sample_reservations.csv")
 # Function to load room type descriptions from metadata.json
 def load_room_descriptions():
     """Load room descriptions from metadata.json file"""
@@ -19,7 +25,6 @@ def load_room_descriptions():
     # Load the metadata file using absolute path
     metadata = load_metadata()
     # Load the room mapping file
-    room_mapping_path = os.path.join(script_dir,"data", "room_mapping.json")
     with open(room_mapping_path, 'r') as f:
         room_mapping = json.load(f)
         
@@ -91,8 +96,7 @@ def load_room_descriptions():
 def load_metadata():
     """Load hotel metadata from JSON file"""
     try:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        metadata_path = os.path.join(script_dir, "data", "metadata.json")
+        
         with open(metadata_path, 'r') as f:
             metadata = json.load(f)
         print("Metadata loaded successfully")
@@ -137,9 +141,7 @@ MEAL_PLAN_DESCRIPTIONS = {
 def load_booking_data():
     """Load and process booking data from CSV file"""
     try:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        data_path = os.path.join(script_dir, "data", "sample_reservations.csv")
-        booking_data = pd.read_csv(data_path)
+        booking_data = pd.read_csv(booking_data_path)
         print("Loaded csv file")
         
         # Convert date column to datetime

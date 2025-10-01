@@ -1,11 +1,17 @@
+import sys
+import os 
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from langchain_core.tools import tool
 import json
-from data_utils import check_room_availability
+from new_reservation.data_utils import check_room_availability
 import streamlit as st
-import os 
 import json
+from new_reservation.reservation_utils import filter_hotels_by_location_and_type,parse_booking_details,calculate_total_cost
+from models import get_llm
+from new_reservation.data_utils import load_metadata
 
 # Global reservation state that syncs with session state
 _global_reservation_state = {
@@ -52,51 +58,13 @@ def get_reservation_state():
     global _global_reservation_state
     return _global_reservation_state
 
-def filter_hotels_by_location_and_type(hotels_data, location):
-    """
-    Filter hotels based on location and type criteria:
-    - If location is Sri Lanka: include only hotels and resorts (exclude Maldives type)
-    - If location is Maldives: include only Maldives type
-    Returns list of filtered hotels with name, description, and type
-    """
-    filtered_hotels = []
-    
-    for hotel in hotels_data:
-        hotel_type = hotel.get('Type', '')
-        hotel_location = hotel.get('Location', '')
-        
-        # Filter based on location
-        if location == "Sri Lanka":
-            # For Sri Lanka: include hotels and resorts but exclude Maldives type
-            if 'Sri Lanka' in hotel_location and hotel_type != 'Maldives':
-                filtered_hotels.append({
-                    'Name': hotel.get('Name', ''),
-                    'Type': hotel_type,
-                    'Location': hotel_location,
-                    'UniqueDescription': hotel.get('UniqueDescription', ''),
-                    'RoomTypes': hotel.get('RoomTypes', []),
-                    'TotalRooms': hotel.get('TotalRooms', 0)
-                })
-        elif location == "Maldives":
-            # For Maldives: include only Maldives type
-            if hotel_type == 'Maldives':
-                filtered_hotels.append({
-                    'Name': hotel.get('Name', ''),
-                    'Type': hotel_type, 
-                    'Location': hotel_location,
-                    'UniqueDescription': hotel.get('UniqueDescription', ''),
-                    'RoomTypes': hotel.get('RoomTypes', []),
-                    'TotalRooms': hotel.get('TotalRooms', 0)
-                })
-    
-    return filtered_hotels
+
 
 @tool
 def start_reservation_process() -> str:
     """Initialize a new reservation process with the updated flow"""
     sync_from_session_state()
     reservation_state = get_reservation_state()
-    
     
     # Initialize reservation state for new flow
     reservation_state.update({
@@ -122,7 +90,7 @@ def start_reservation_process() -> str:
     
     sync_to_session_state()
     
-    return """🌟 **Welcome to Cinnamon Hotels!** I'm excited to help you plan the perfect getaway!
+    return f"""🌟 **Welcome to Cinnamon Hotels!** I'm excited to help you plan the perfect getaway!
 
 Let's start with the most important decision - your destination:
 <div>
@@ -166,14 +134,7 @@ def set_destination_preference(destination: str) -> str:
         destination_clean = "Sri Lanka"
     elif 'maldives' in destination.lower():
         destination_clean = "Maldives"
-    
-#     if destination_clean not in ["Sri Lanka", "Maldives"]:
-#         return """I specialize in two amazing destinations:
 
-# **Sri Lanka** - Cultural diversity, beautiful beaches, and wildlife
-# **Maldives** - Luxury overwater villas and pristine atolls
-
-# Which of these tropical paradises would you like to explore?"""
     
     reservation_state['location'] = destination_clean
     reservation_state['step'] = 'property_selection'
@@ -199,7 +160,6 @@ Describe your perfect vacation and I'll find the ideal property for you! ✨"""
 @tool  
 def select_property_with_ai(user_preferences: str) -> str:
     """Use intelligent property selection with clarifying questions when needed"""
-    from models import get_llm
     
     sync_from_session_state()
     reservation_state = get_reservation_state()
@@ -211,9 +171,7 @@ def select_property_with_ai(user_preferences: str) -> str:
     
     # Load hotel data
     try:
-        metadata_path = os.path.join(os.path.dirname(__file__), 'data', 'metadata.json')
-        with open(metadata_path, 'r') as f:
-            metadata = json.load(f)
+        metadata = load_metadata()
         hotels_data = metadata.get('HotelsAndResorts', [])
     except Exception as e:
         print(f"Error loading metadata: {e}")
@@ -225,294 +183,9 @@ def select_property_with_ai(user_preferences: str) -> str:
     if not filtered_hotels:
         return f"I'm sorry, no properties are available for {location} at the moment."
     
-    # # PHASE 1: Intelligent Matching Analysis
-    # matching_result = analyze_property_matches(filtered_hotels, location, user_preferences)
-    # # print(f"ANALYSING RESULTS: {matching_result}")
-    # if matching_result['status'] == 'single_match':
-    #     # Perfect! Only one property matches - recommend it immediately
-    #     return recommend_single_property(matching_result['property'], matching_result['reasons'], reservation_state)
     
-    # elif matching_result['status'] == 'multiple_matches':
-    #     print(f"ANALYSING MULTIPLE RESULTS: {len(matching_result['matching_properties'])}")
-    #     # Multiple properties match - ask clarifying question
-    #     return ask_clarifying_question(
-    #         matching_result['matching_properties'],
-    #         matching_result['missing_criteria'],
-    #         user_preferences,
-    #         reservation_state
-    #     )
-    
-    # elif matching_result['status'] == 'no_match':
-    #     # No exact matches - show alternatives with explanation
-    #     return suggest_alternatives(filtered_hotels, matching_result['reason'], reservation_state)
-    
-    # else:
-    #     # Fallback to standard LLM selection
     return perform_llm_selection(filtered_hotels, location, user_preferences, reservation_state)
 
-
-# def analyze_property_matches(hotels, location, user_preferences):
-#     """
-#     Use LLM to analyze which properties match user preferences and determine next steps.
-#     Returns: {
-#         'status': 'single_match' | 'multiple_matches' | 'no_match',
-#         'property': hotel_dict (if single match),
-#         'matching_properties': [hotels] (if multiple matches),
-#         'missing_criteria': str (what info is needed),
-#         'reasons': [str] (why this/these match)
-#     }
-#     """
-#     print(f"Analyzing Properties")
-#     from models import get_llm
-#     # print(f"Analyzing Hotels {hotels}")
-#     # Prepare hotel information for LLM
-#     hotels_info = []
-#     for i, hotel in enumerate(hotels, 1):
-#         # room_types = hotel.get('RoomTypes', [])
-#         # price_info = "Contact for pricing"
-#         # if room_types:
-#         #     # Get price range from metadata
-#         #     metadata_path = os.path.join(os.path.dirname(__file__), 'data', 'metadata.json')
-#         #     with open(metadata_path, 'r') as f:
-#         #         metadata = json.load(f)
-#         #     # price_mapping = metadata.get('PriceMapping', {})
-            
-#         #     # prices = []
-#         #     # for room in room_types:
-#         #     #     price_key = room.get('Price', '')
-#         #     #     if price_key in price_mapping:
-#         #     #         prices.append(price_mapping[price_key])
-            
-#         #     # if prices:
-#         #     #     price_info = f"${min(prices)}-${max(prices)}/night"
-        
-#         hotel_info = f"""
-# Property {i}: {hotel.get('Name')}
-# Type: {hotel.get('Type')}
-# Location: {hotel.get('Location')}
-# Description: {hotel.get('UniqueDescription', '')}
-# """
-#         hotels_info.append(hotel_info)
-    
-#     # Create analysis prompt
-#     analysis_prompt = f"""You are an expert hotel analyst. Analyze which properties match the user's preferences.
-# Note that if some hotel's description says Luxury its not a budget option. Don't look at the price just look at the description only when making a decision
-# USER'S DESTINATION: {location}
-# USER'S PREFERENCES: "{user_preferences}"
-
-# AVAILABLE PROPERTIES:
-# {chr(10).join(hotels_info)}
-
-# TASK: Determine matching status and next steps.
-
-# RESPOND IN THIS EXACT JSON FORMAT:
-# {{
-#     "status": "single_match" OR "multiple_matches" OR "no_match",
-#     "matching_property_numbers": [list of property numbers that match],
-#     "missing_criteria": "What key information is missing to narrow down? (budget/location_specifics/experience_type/amenities)",
-#     "reasoning": "Brief Explanation of why this property/properties was chosen. Write it in a professional and friendly tone. You can Start like you asked for .. Then we recommend this because(DONT EXPOSE ANY INTERNAL DATA LIKE IT IS DESCRIBED AS ...)  .. ")"
-# }}
-
-# RULES:
-# 1. "single_match": Only if ONE property clearly matches all criteria
-# 2. "multiple_matches": If 2+ properties match equally well
-# 3. "no_match": If no properties match the stated preferences
-# 4. Focus on:  location type (beach/city/cultural), experience type (luxury/family/business)
-# 5.Note that if some hotel's description says Luxury its not a budget option. Don't look at the price just look at the description only when making a decision
-# 6. If user mentions specific location (e.g., "Colombo", "Bentota") and only one property is there, it's a single match
-# 7. If user mentions unique characteristic that only one property has, it's a single match
-
-# RESPOND ONLY WITH VALID JSON, NO OTHER TEXT."""
-
-#     try:
-#         llm = get_llm()
-#         response = llm.invoke(analysis_prompt)
-#         response_text = response.content if hasattr(response, 'content') else str(response)
-#         print(f"LLM response {response_text}")
-#         # Parse JSON response
-#         # Extract JSON from response (handle markdown code blocks)
-#         json_start = response_text.find('{')
-#         json_end = response_text.rfind('}') + 1
-#         json_str = response_text[json_start:json_end]
-        
-#         analysis = json.loads(json_str)
-        
-#         # Build result based on analysis
-#         result = {
-#             'status': analysis.get('status', 'multiple_matches'),
-#             'reason': analysis.get('reasoning', '')
-#         }
-        
-#         matching_numbers = analysis.get('matching_property_numbers', [])
-        
-#         if result['status'] == 'single_match' and len(matching_numbers) == 1:
-#             property_idx = matching_numbers[0] - 1
-#             result['property'] = hotels[property_idx]
-#             result['reasons'] = [analysis.get('reasoning', '')]
-            
-#         elif result['status'] == 'multiple_matches' and len(matching_numbers) > 1:
-#             result['matching_properties'] = [hotels[i-1] for i in matching_numbers]
-#             result['missing_criteria'] = analysis.get('missing_criteria', 'budget and preferences')
-            
-#         return result
-        
-#     except Exception as e:
-#         print(f"Error in property analysis: {e}")
-#         # Fallback: treat as multiple matches
-#         # return {
-#         #     'status': 'multiple_matches',
-#         #     'matching_properties': hotels,
-#         #     'missing_criteria': 'your preferences',
-#         #     'reason': 'Unable to analyze automatically'
-#         # }
-
-
-# def recommend_single_property(hotel, reasons, reservation_state):
-#     """Recommend a single property that matches all criteria"""
-#     reservation_state['recommended_property'] = hotel['Name']
-#     reservation_state['recommended_property_data'] = hotel
-#     reservation_state['step'] = 'property_confirmation'
-#     sync_to_session_state()
-    
-#     return f"""Perfect match! Based on your preferences, I have the ideal property for you:
-
-# **{hotel['Name']}**
-#  {hotel.get('Location', '')}
-
-# {hotel.get('UniqueDescription', '')}
-
-#  **Why this is perfect for you:**
-# {chr(10).join(['• ' + r for r in reasons])}
-
-# """
-
-
-# def ask_clarifying_question(matching_properties, missing_criteria, original_preferences, reservation_state):
-#     """Ask intelligent clarifying questions to narrow down choices"""
-#     from models import get_llm
-#     print(f"Start processing clarifying questions....")
-#     # Prepare property summaries
-#     properties_summary = []
-#     for hotel in matching_properties:
-#         properties_summary.append(f"• {hotel['Name']} - {hotel.get('Location', '')}")
-    
-#     # Use LLM to generate natural clarifying question
-#     clarification_prompt = f"""You are a friendly hotel concierge. The user said: "{original_preferences}"
-
-# This matches {len(matching_properties)} properties:
-# {chr(10).join(properties_summary)}
-
-# The key missing information is: {missing_criteria}
-
-# Generate a friendly, natural question to help narrow down the choice. The question should:
-# 1. First mention that these are properties that match your preference (include their names)
-# 2. Be conversational and warm
-# 3. Present 2-3 clear options based on the missing criteria
-# 4. Help the user decide between these properties
-# 5. Not overwhelm with too much information
-
-# RESPOND WITH JUST THE QUESTION, NO JSON OR EXTRA TEXT."""
-
-#     try:
-#         llm = get_llm()
-#         response = llm.invoke(clarification_prompt)
-#         clarifying_question = response.content if hasattr(response, 'content') else str(response)
-        
-#         # Store state for follow-up
-#         reservation_state['pending_properties'] = [h['Name'] for h in matching_properties]
-#         reservation_state['step'] = 'property_selection'  # Stay in selection
-#         sync_to_session_state()
-#         print(f"Clarifying Question: {clarifying_question}")
-#         return clarifying_question
-        
-#     except Exception as e:
-#         print(f"Error generating clarifying question: {e}")
-#         # Fallback question
-# #         return f"""I found {len(matching_properties)} properties that match your preferences:
-
-# # {chr(10).join(properties_summary)}
-
-# # To help me recommend the best one, could you tell me:
-# # • What's your preferred budget range per night?
-# # • Are you looking for luxury or value-focused experience?"""
-
-
-def calculate_total_cost(reservation_state):
-    """Calculate the total cost based on room rate, duration, guests, children, and meal plan"""
-    
-    # Get reservation details
-    duration = reservation_state.get('duration', 1)
-    guests = reservation_state.get('guests', 1)
-    children = reservation_state.get('children', 0)
-    rooms_needed = reservation_state.get('rooms_needed', 1)
-    meal_type = reservation_state.get('meal_type', 'Room Only')
-    selected_room_data = reservation_state.get('selected_room_data', {})
-    
-    # Get room rate per night
-    room_rate_per_night = selected_room_data.get('base_rate_per_night', 200)  # Default fallback
-    
-    # Calculate base room cost
-    base_room_cost = room_rate_per_night * duration * rooms_needed
-    
-    # Define meal plan costs per person per day
-    meal_costs = {
-        'room only': 0,
-        'breakfast included': 25,
-        'half board': 50,
-        'full board': 75,
-        'all inclusive': 120
-    }
-    
-    # Get meal cost per person per day
-    meal_cost_per_day = meal_costs.get(meal_type.lower(), 0)
-    
-    # Calculate total meal costs
-    total_people = guests + children
-    total_meal_cost = meal_cost_per_day * total_people * duration
-    
-    # Calculate total cost
-    total_cost = base_room_cost + total_meal_cost
-    
-    return {
-        'total_cost': total_cost,
-        'breakdown': {
-            'room_cost': base_room_cost,
-            'meal_cost': total_meal_cost,
-            'room_rate_per_night': room_rate_per_night,
-            'meal_cost_per_person_per_day': meal_cost_per_day,
-            'duration': duration,
-            'guests': guests,
-            'children': children,
-            'rooms': rooms_needed
-        }
-    }
-
-
-def suggest_alternatives(all_hotels, reason, reservation_state):
-    """Suggest alternatives when no exact match is found"""
-    
-    alternatives_text = f"""I understand you're looking for something specific. {reason}
-
-Here are all our available properties that might interest you:
-
-"""
-    
-    for i, hotel in enumerate(all_hotels, 1):
-        alternatives_text += f"""**{i}. {hotel.get('Name')}**
-📍 {hotel.get('Location', '')}
-{hotel.get('UniqueDescription', '')}
-
-"""
-    
-    alternatives_text += """Please tell me more about what you're looking for, and I'll find the perfect match! You can mention:
-• Budget preferences (luxury/mid-range/budget)
-• Location specifics (beach/city/cultural sites)
-• Experience type (romance/family/business/adventure)"""
-    
-    reservation_state['step'] = 'property_selection'
-    sync_to_session_state()
-    
-    return alternatives_text
 
 
 
@@ -685,9 +358,7 @@ def show_property_alternatives() -> str:
     
     try:
         # Load hotel data
-        metadata_path = os.path.join(os.path.dirname(__file__), 'data', 'metadata.json')
-        with open(metadata_path, 'r') as f:
-            metadata = json.load(f)
+        metadata = load_metadata()
         
         hotels_data = metadata.get('HotelsAndResorts', [])
         price_mapping = metadata.get('PriceMapping', {})
@@ -1212,79 +883,3 @@ Need any changes or have questions? Just ask!"""
     
     return "Please confirm if you'd like to finalize this booking by saying 'Yes, confirm' or let me know if you need any changes."
 
-def parse_booking_details(booking_info: str) -> dict:
-    """Parse user booking information into structured data"""
-    import re
-    from datetime import datetime, timedelta
-    
-    info = booking_info.lower()
-    original_info = booking_info  # Keep original case for dates
-    parsed = {
-        'check_in': None,
-        'check_out': None,
-        'guests': None,
-        'children': None,
-        'rooms': None,
-        'budget_range': None
-    }
-    
-    # Parse check-in date (various formats)
-    checkin_patterns = [
-        r'check-in[:\s]+(\d{4}-\d{2}-\d{2})',  # check-in 2025-10-09
-        r'checkin[:\s]+(\d{4}-\d{2}-\d{2})',   # checkin 2025-10-09
-        r'(\d{4}-\d{2}-\d{2})\s*(?:to|,|\s+check)',  # 2025-10-09 to/,/check
-    ]
-    
-    for pattern in checkin_patterns:
-        match = re.search(pattern, original_info, re.IGNORECASE)
-        if match:
-            parsed['check_in'] = match.group(1)
-            break
-    
-    # Parse check-out date (various formats)
-    checkout_patterns = [
-        r'check-out[:\s]+(\d{4}-\d{2}-\d{2})',  # check-out 2025-10-15
-        r'checkout[:\s]+(\d{4}-\d{2}-\d{2})',   # checkout 2025-10-15
-        r'(?:to|,)\s*(\d{4}-\d{2}-\d{2})',      # to 2025-10-15
-        r'check-out\s+(\d{4}-\d{2}-\d{2})',     # check-out 2025-10-15
-    ]
-    
-    for pattern in checkout_patterns:
-        match = re.search(pattern, original_info, re.IGNORECASE)
-        if match:
-            parsed['check_out'] = match.group(1)
-            break
-    
-    # Parse guest count
-    guest_matches = re.findall(r'(\d+)\s*(?:adult|guest|people|person)', info)
-    if guest_matches:
-        parsed['guests'] = int(guest_matches[0])
-    
-    # Parse children count
-    children_matches = re.findall(r'(\d+)\s*(?:child|children|kid)', info)
-    if children_matches:
-        parsed['children'] = int(children_matches[0])
-    
-    # Parse room count
-    room_matches = re.findall(r'(\d+)\s*room', info)
-    if room_matches:
-        parsed['rooms'] = int(room_matches[0])
-    
-    # Parse budget range - improved pattern to avoid matching dates
-    budget_patterns = [
-        r'budget\s+\$?(\d+)[-\s]*(?:to|-|\$)\s*\$?(\d+)',  # budget $100-$500
-        r'\$(\d{2,4})[-\s]*(?:to|-)\s*\$(\d{2,4})',        # $100-$500 (2-4 digits to avoid dates)
-        r'budget\s+\$?(\d+)\s*[-]\s*\$?(\d+)',             # budget $100-$500
-    ]
-    
-    for pattern in budget_patterns:
-        budget_matches = re.findall(pattern, info)
-        if budget_matches:
-            min_budget, max_budget = budget_matches[0]
-            # Only accept reasonable budget ranges (not dates)
-            min_val, max_val = int(min_budget), int(max_budget)
-            if min_val < 2000 and max_val < 2000 and min_val < max_val:
-                parsed['budget_range'] = [min_val, max_val]
-                break
-    
-    return parsed

@@ -18,8 +18,8 @@ def get_llm():
         return _cached_llm
     
     # Azure OpenAI configuration with API key authentication
-    endpoint = os.getenv("ENDPOINT_URL", "https://octtestoctgpt01.openai.azure.com/")
-    deployment = os.getenv("DEPLOYMENT_NAME", "gpt-4o")
+    endpoint = os.getenv("ENDPOINT_URL")
+    deployment = os.getenv("DEPLOYMENT_NAME")
     api_key = os.getenv("AZURE_OPENAI_API_KEY")
     
     if not api_key:

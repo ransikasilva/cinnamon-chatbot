@@ -38,14 +38,14 @@ if "reservation_state" not in st.session_state:
         'confirmation_details': {}
     }
 
-from reservation_tools import (
+from new_reservation.reservation_tools import (
     start_reservation_process, set_destination_preference, select_property_with_ai,
     confirm_property_selection, show_property_alternatives, set_booking_details, check_availability_and_show_rooms, 
     select_room_type, select_meal_plan, confirm_final_reservation, 
     sync_from_session_state, sync_to_session_state
 )
-from change_booking_tools import change_existing_booking
-from general_query_tools import get_hotel_info, handle_general_query
+from change_booking.change_booking_tools import change_existing_booking
+from general_query.general_query_tools import get_hotel_info, handle_general_query
 
 # Initialize global reservation state with session state values
 sync_from_session_state()
@@ -331,12 +331,7 @@ if st.session_state.reservation_state['step'] is not None:
         
         st.markdown("**Or type:** *Sri Lanka* • *Maldives*")
         
-    # elif step == 'property_selection':
-    #     st.markdown("---")
-    #     st.markdown("🏨 Describe Your Ideal Experience" \
-    #     "Tell me about your perfect vacation in the chat below! I'll analyze your preferences and recommend the ideal property that matches your style, budget, and dreams.")
-    #     # st.info("💬 Tell me about your perfect vacation in the chat below! I'll analyze your preferences and recommend the ideal property that matches your style, budget, and dreams.")
-        
+
     elif step == 'property_confirmation':
         st.markdown("---")
         st.markdown("### 🤔 What would you like to do?")

@@ -53,6 +53,7 @@ def sync_to_session_state():
 def sync_from_session_state():
     """Sync Streamlit session state to global reservation state"""
     global _global_reservation_state
+    
     try:
         if hasattr(st, "session_state") and "reservation_state" in st.session_state:
             _global_reservation_state.update(st.session_state.reservation_state)
@@ -68,7 +69,7 @@ def get_reservation_state():
 
 @tool
 def start_reservation_process() -> str:
-    """Initialize a new reservation process with the updated flow"""
+    """Starts the new reservation/booking process"""
     sync_from_session_state()
     reservation_state = get_reservation_state()
 

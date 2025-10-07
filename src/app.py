@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore", message=".*ScriptRunContext.*")
 if "messages" not in st.session_state:
     st.session_state.messages = []
 # Initialize reservation state in session state
-print(f"Script run")
+print(f"Script run current step is {st.session_state.get('reservation_state')['step'] if 'reservation_state' in st.session_state else 'N/A'}")
 if "reservation_state" not in st.session_state:
     # print(f"DEBUG: Initializing reservation_state in session")
     st.session_state.reservation_state = {
@@ -47,7 +47,7 @@ if "reservation_state" not in st.session_state:
     }
 
 from change_booking.change_booking_tools import change_existing_booking
-from general_query.general_query_tools import get_hotel_info, handle_general_query
+from general_query.general_query_tools import handle_general_query
 from new_reservation.reservation_tools import (
     check_availability_and_show_rooms,
     confirm_final_reservation,
@@ -89,7 +89,7 @@ These are the main options you have to assist users:
 
 These are tools you have for make a new reservation:
 
-start_reservation_process tool - introduces the new flow and asks for destination
+start_reservation_process tool - This starts the new reservation/booking process
 set_destination_preference tool - handles Sri Lanka vs Maldives selection if user gives other than these two options send him a proper concise message saying We are currently operate only in Sri Lanka and Maldives only. Please choose one of these destinations. in that case no need to call the tool
 select_property_with_ai tool - AI-powered property selection based on user preferences
 confirm_property_selection tool - handles user's response to recommendation (accept or alternatives)
@@ -154,7 +154,6 @@ def get_cached_llm_with_tools():
         select_room_type,
         select_meal_plan,
         confirm_final_reservation,
-        get_hotel_info,
         get_hotel_information,
         change_existing_booking,
         handle_general_query,

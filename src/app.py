@@ -89,7 +89,7 @@ These are the main options you have to assist users:
 
 These are tools you have for make a new reservation:
 
-start_reservation_process tool - This starts the new reservation/booking process
+start_reservation_process tool - This starts the new reservation/booking process if user says something similar to i want to make a booking you can use this tool as it starts the booking/reservation process
 set_destination_preference tool - handles Sri Lanka vs Maldives selection if user gives other than these two options send him a proper concise message saying We are currently operate only in Sri Lanka and Maldives only. Please choose one of these destinations. in that case no need to call the tool
 select_property_with_ai tool - AI-powered property selection based on user preferences
 confirm_property_selection tool - handles user's response to recommendation (accept or alternatives)

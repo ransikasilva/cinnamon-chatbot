@@ -52,6 +52,7 @@ from new_reservation.reservation_tools import (
     check_availability_and_show_rooms,
     confirm_final_reservation,
     confirm_property_selection,
+    get_hotel_information,
     select_meal_plan,
     select_property_with_ai,
     select_room_type,
@@ -86,26 +87,25 @@ These are the main options you have to assist users:
 3. Know something about our hotels
 4. Other (general questions)
 
-NEW RESERVATION FLOW GUIDELINES:
+These are tools you have for make a new reservation:
 
-**For Option 1 (Make a new reservation): Follow these exact sequence**
-1. FIRST: Use start_reservation_process tool - introduces the new flow and asks for destination
-2. SECOND: Use set_destination_preference tool - handles Sri Lanka vs Maldives selection if user gives other than these two options send him a proper concise message saying We are currently operate only in Sri Lanka and Maldives only. Please choose one of these destinations. in that case no need to call the tool
-3. THIRD: Use select_property_with_ai tool - AI-powered property selection based on user preferences
-4. FOURTH: Use confirm_property_selection tool - handles user's response to recommendation (accept or alternatives)
-5. FIFTH: Use set_booking_details tool - collects dates, guests, children, and budget
-6. SIXTH: Use check_availability_and_show_rooms tool - shows available rooms within budget
-7. SEVENTH: Use select_room_type tool - handles room selection
-8. EIGHTH: Use select_meal_plan tool - handles meal plan selection and cost calculation
-9. FINAL: Use confirm_final_reservation tool - shows summary and confirms booking
-
+start_reservation_process tool - introduces the new flow and asks for destination
+set_destination_preference tool - handles Sri Lanka vs Maldives selection if user gives other than these two options send him a proper concise message saying We are currently operate only in Sri Lanka and Maldives only. Please choose one of these destinations. in that case no need to call the tool
+select_property_with_ai tool - AI-powered property selection based on user preferences
+confirm_property_selection tool - handles user's response to recommendation (accept or alternatives)
+set_booking_details tool - collects dates, guests, children, and budget
+check_availability_and_show_rooms tool - shows available rooms within budget
+select_room_type tool - handles room selection
+select_meal_plan tool - handles meal plan selection and cost calculation
+confirm_final_reservation tool - shows summary and confirms booking
+get_hotel_information tool for detailed questions about amenities, room types, locations, facilities, comparisons between hotels, etc.
+YOU SHOULD BE ABLE TO USE THESE TOOLS IN A NATURAL, CONVERSATIONAL WAY, ASKING FOLLOW-UP QUESTIONS TO UNDERSTAND USER NEEDS BETTER.
 
 **IMPORTANT: Property Selection Flow:**
 - After select_property_with_ai provides a recommendation, ALWAYS use confirm_property_selection tool next
 - When user accepts/confirms (yes, sounds good, perfect, etc.), use confirm_property_selection with "book this" as argument
 - When user wants alternatives/other options, use show_property_alternatives tool
 - After show_property_alternatives, when user selects a property, use confirm_property_selection tool
-- When user asks for details, use confirm_property_selection with "details" as argument
 - LLM should interpret user intent and pass standardized arguments (no hardcoded keyword matching in tools)
 
 **For Option 2 (Change Booking):**
@@ -114,7 +114,7 @@ NEW RESERVATION FLOW GUIDELINES:
 - Wait for user response before any additional actions
 
 **For Option 3 (Hotel Info):**
-- Use get_hotel_info tool to show property details
+- Use get_hotel_information tool to show property details
 - Wait for user response before offering reservations
 
 **For Option 4 (General Questions):**
@@ -133,7 +133,7 @@ CRITICAL REMINDERS:
 - Always wait for user input before proceeding to the next step
 - Present tool responses naturally and ask for the next piece of information
 - Let the user guide the conversation pace
-- Follow the NEW reservation flow sequence exactly
+
 
 
 """
@@ -155,6 +155,7 @@ def get_cached_llm_with_tools():
         select_meal_plan,
         confirm_final_reservation,
         get_hotel_info,
+        get_hotel_information,
         change_existing_booking,
         handle_general_query,
     ]

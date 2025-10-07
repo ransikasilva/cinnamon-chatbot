@@ -940,3 +940,101 @@ Thank you for choosing Cinnamon Hotels! We can't wait to welcome you! 🌟
 Need any changes or have questions? Just ask!"""
 
     return "Please confirm if you'd like to finalize this booking by saying 'Yes, confirm' or let me know if you need any changes."
+
+
+@tool
+def get_hotel_information(query: str) -> str:
+    """
+    Get detailed information about hotels, amenities, services, or any hotel-related questions.
+    
+    Args:
+        query (str): User's question about hotels, amenities, locations, facilities, etc.
+        
+    Returns:
+        str: Detailed answer based on hotel metadata
+        
+    Examples:
+        - "What amenities does Cinnamon Grand have?"
+        - "Tell me about hotels in Colombo"
+        - "What room types are available at Cinnamon Lakeside?"
+        - "Which hotels have spa facilities?"
+        - "What's the difference between properties in Sri Lanka vs Maldives?"
+    """
+    try:
+        # Load complete hotel metadata
+        metadata = load_metadata()
+        hotels_data = metadata.get("HotelsAndResorts", [])
+        price_mapping = metadata.get("PriceMapping", {})
+        
+        if not hotels_data:
+            return "I'm sorry, I couldn't load hotel information at the moment. Please try again."
+        
+        # Get current reservation context if available
+        sync_from_session_state()
+        reservation_state = get_reservation_state()
+        current_location = reservation_state.get("location")
+        current_property = reservation_state.get("property")
+        
+        # Prepare comprehensive hotel data for LLM
+        hotels_info = []
+        for hotel in hotels_data:
+            # Get room types with pricing
+            room_info = []
+            for room in hotel.get("RoomTypes", []):
+                price_key = room.get("Price", "")
+                price_value = price_mapping.get(price_key, "Contact for pricing")
+                room_info.append({
+                    "type": room.get("RoomType", ""),
+                    "price": price_value,
+                    "description": room.get("Description", "")
+                })
+            
+            hotel_info = {
+                "name": hotel.get("Name", ""),
+                "location": hotel.get("Location", ""),
+                "type": hotel.get("Type", ""),
+                "description": hotel.get("UniqueDescription", ""),
+                "amenities": hotel.get("Amenities", []),
+                "dining": hotel.get("DiningOptions", []),
+                "activities": hotel.get("Activities", []),
+                "room_types": room_info,
+                "nearby_attractions": hotel.get("NearbyAttractions", [])
+            }
+            hotels_info.append(hotel_info)
+        
+        # Create LLM prompt for hotel information query
+        # context_info = ""
+        # if current_location:
+        #     context_info += f"User is currently interested in: {current_location}\n"
+        # if current_property:
+        #     context_info += f"User's selected property: {current_property}\n"
+        
+        info_prompt = f"""You are a knowledgeable hotel concierge at Cinnamon Hotels. Answer the user's question about hotels using the provided data.
+
+USER'S QUESTION: "{query}"
+
+HOTEL DATA:
+{json.dumps(hotels_info, indent=2)}
+
+GUIDELINES:
+- Provide accurate, helpful information based only on the data provided BUT DO NOT PROVIDE INFO AS IT IS IN THE DATASET.
+- Be conversational and friendly, as if speaking to a guest
+- If the question is about a specific hotel, focus on that property
+- If comparing hotels, highlight key differences
+- Include relevant details like pricing, amenities, locations
+- If information isn't available in the data, say so honestly
+- Format your response nicely with emojis and clear sections
+- Keep responses concise but comprehensive DONT PROVIDE INFO AS IT IS IN THE DATASET.
+
+RESPOND DIRECTLY TO THE USER'S QUESTION:"""
+
+        # Get LLM response
+        llm = get_llm()
+        response = llm.invoke(info_prompt)
+        response_text = response.content if hasattr(response, "content") else str(response)
+        
+        return response_text
+        
+    except Exception as e:
+        print(f"Error in hotel information query: {e}")
+        return "I'm sorry, I encountered an error while looking up hotel information. Please try asking again or contact our support team for assistance."

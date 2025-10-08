@@ -62,10 +62,10 @@ from new_reservation.reservation_tools import (
     start_reservation_process,
     sync_from_session_state,
     sync_to_session_state,
+    extract_and_jump_to_booking_details
+
 )
-from new_reservation.smart_orchestrator import (
-    extract_and_jump_to_booking_details,
-)
+
 
 # Initialize global reservation state with session state values
 sync_from_session_state()

@@ -2,9 +2,15 @@ import json
 import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import streamlit as st
-from langchain_core.tools import tool
+
+# Use the same import pattern as in reservation_tools.py
+
+from models import get_llm
+from new_reservation.data_utils import load_metadata
+
 
 
 def filter_hotels_by_location_and_type(hotels_data, location):
@@ -180,3 +186,203 @@ def parse_booking_details(booking_info: str) -> dict:
                 break
 
     return parsed
+
+
+def extract_property_name(user_query: str) -> Optional[str]:
+    """Extract hotel/property name from user query using LLM"""
+    try:
+        # Load hotel data to get valid property names
+        metadata = load_metadata()
+        hotels_data = metadata.get("HotelsAndResorts", [])
+        
+        if not hotels_data:
+            return None
+        
+        # Get list of hotel names for validation
+        hotel_names = [hotel.get("Name", "") for hotel in hotels_data]
+        
+        # Create LLM prompt
+        prompt = f"""Extract the hotel or property name mentioned in the user's query, if any.
+If no hotel/property name is mentioned, return "None".
+
+USER QUERY: "{user_query}"
+
+AVAILABLE HOTELS:
+{', '.join(hotel_names)}
+
+Return only the exact hotel name from the list above, or "None" if no match found. Be generous with partial matches.
+"""
+        
+        # Get LLM response
+        llm = get_llm()
+        response = llm.invoke(prompt)
+        extracted_name = response.content if hasattr(response, "content") else str(response)
+        
+        # Clean up and validate
+        extracted_name = extracted_name.strip().strip('"\'')
+        if extracted_name.lower() == "none" or not extracted_name:
+            return None
+            
+        # Find best match from available hotels
+        best_match = None
+        for hotel_name in hotel_names:
+            if hotel_name.lower() == extracted_name.lower():
+                return hotel_name  # Exact match
+            elif hotel_name.lower() in extracted_name.lower() or extracted_name.lower() in hotel_name.lower():
+                best_match = hotel_name  # Partial match
+                
+        return best_match
+        
+    except Exception as e:
+        print(f"Error extracting property name: {e}")
+        return None
+
+
+def extract_location(user_query: str) -> Optional[str]:
+    """Extract location (Sri Lanka or Maldives) from user query using both direct matching and LLM"""
+    # First try direct matching for efficiency
+    user_query_lower = user_query.lower()
+    
+    if "sri lanka" in user_query_lower:
+        return "Sri Lanka"
+    elif "maldives" in user_query_lower:
+        return "Maldives"
+    
+    # If direct matching fails, try with LLM for more robust detection
+    try:
+        prompt = f"""
+Determine if the user is asking about Sri Lanka or Maldives in their query.
+If neither location is clearly mentioned, return "Unknown".
+
+USER QUERY: "{user_query}"
+
+RESPOND WITH ONLY ONE OF THESE THREE OPTIONS:
+- Sri Lanka
+- Maldives
+- Unknown
+        """
+        
+        llm = get_llm()
+        response = llm.invoke(prompt)
+        location = response.content if hasattr(response, "content") else str(response)
+        
+        location = location.strip().strip('"\'')
+        if location in ["Sri Lanka", "Maldives"]:
+            return location
+            
+        return None
+    except Exception as e:
+        print(f"Error extracting location with LLM: {e}")
+        return None
+
+
+def extract_booking_details_llm(user_query: str) -> Dict:
+    """
+    Use LLM to extract booking details from user query
+    
+    Args:
+        user_query: User's natural language query that might contain booking details
+        
+    Returns:
+        Dict with extracted booking details: check_in, check_out, guests, children, rooms, budget_range
+    """
+    try:
+        llm = get_llm()
+        
+        # Format today's date for context
+        today = datetime.now()
+        current_year = today.year
+        
+        # Create a prompt that asks the LLM to extract booking details
+        prompt = f"""
+Extract booking details from the user's query and format the response as JSON. Today is {today.strftime('%B %d, %Y')}.
+
+USER QUERY: "{user_query}"
+
+Extract these fields (return null if not present):
+1. check_in: ISO format date (YYYY-MM-DD) when the user wants to check in
+2. check_out: ISO format date (YYYY-MM-DD) when the user wants to check out
+3. guests: Number of adult guests (integer)
+4. children: Number of children (integer, default to 0 if not specified)
+5. rooms: Number of rooms needed (integer, default to 1 if not specified)
+6. budget_range: Array with [min, max] values in USD for the price range per night
+
+INSTRUCTIONS:
+- Format dates in ISO format (YYYY-MM-DD)
+- If month/day are mentioned but no year, assume the current year ({current_year}) or next year if the date would be in the past
+- If only a duration is mentioned (e.g., "5 nights starting Dec 12"), calculate the check-out date
+- If budget is a single value, use [value-50, value+50] as the range
+- Dates like "next weekend", "next month", "this Friday" should be converted to actual dates
+- For budget range, if only one number is mentioned (e.g., "$300"), create a reasonable range around it
+
+RESPOND WITH VALID JSON ONLY, like this:
+{{
+  "check_in": "YYYY-MM-DD",
+  "check_out": "YYYY-MM-DD",
+  "guests": 2,
+  "children": 0,
+  "rooms": 1,
+  "budget_range": [100, 300]
+}}
+        """
+        
+        response = llm.invoke(prompt)
+        response_text = response.content if hasattr(response, "content") else str(response)
+        
+        # Extract the JSON part of the response
+        import re
+        json_match = re.search(r'({[\s\S]*})', response_text)
+        if json_match:
+            json_str = json_match.group(1)
+            booking_details = json.loads(json_str)
+            return booking_details
+        
+        return {}
+    except Exception as e:
+        print(f"Error extracting booking details with LLM: {e}")
+        return {}
+
+
+def validate_property(property_name: str, location: Optional[str]) -> Optional[Dict]:
+    """Validate property exists and return its data"""
+    try:
+        # Load hotel data
+        metadata = load_metadata()
+        hotels_data = metadata.get("HotelsAndResorts", [])
+        
+        if not hotels_data:
+            return None
+        
+        # First try exact match
+        for hotel in hotels_data:
+            hotel_name = hotel.get("Name", "")
+            if hotel_name.lower() == property_name.lower():
+                # If location is specified, make sure it matches
+                if location and location != "Unknown":
+                    hotel_location = hotel.get("Location", "")
+                    if location == "Sri Lanka" and "Sri Lanka" not in hotel_location:
+                        continue
+                    if location == "Maldives" and "Maldives" not in hotel_location and hotel.get("Type") != "Maldives":
+                        continue
+                
+                return hotel
+        
+        # Try partial match
+        for hotel in hotels_data:
+            hotel_name = hotel.get("Name", "")
+            if property_name.lower() in hotel_name.lower() or hotel_name.lower() in property_name.lower():
+                # If location is specified, make sure it matches
+                if location and location != "Unknown":
+                    hotel_location = hotel.get("Location", "")
+                    if location == "Sri Lanka" and "Sri Lanka" not in hotel_location:
+                        continue
+                    if location == "Maldives" and "Maldives" not in hotel_location and hotel.get("Type") != "Maldives":
+                        continue
+                
+                return hotel
+                
+        return None
+        
+    except Exception as e:
+        print(f"Error validating property: {e}")
+        return None

@@ -439,141 +439,124 @@ I'll help you select the perfect property for your stay!"""
 
 
 @tool
-def confirm_property_selection(selection: str) -> str:
+def confirm_property_selection(hotel_name: str) -> str:
     """
-    Handle user's response to property recommendation or direct property selection.
+    Confirm and proceed with booking for a selected hotel property.
+    
+    IMPORTANT - LLM MUST PROVIDE THE COMPLETE, EXACT HOTEL NAME:
+    
+    Before calling this tool, the LLM MUST:
+    1. If user says "yes", "book this", "confirm" → Use the currently recommended hotel's exact name
+    2. If user provides a number (e.g., "2", "option 1") → Convert to the corresponding hotel name from the list
+    3. If user provides partial name (e.g., "Grand") → Match and provide the complete hotel name (e.g., "Cinnamon Grand Colombo")
+    4. Search the recommended_hotels, all_location_hotels, or entire database to find the exact match
     
     Args:
-        selection: User's selection. Can be "book this" to accept recommendation,
-                  a specific property name for direct booking, a number for selecting from a list,
-                  or a request for more information about a property.
+        hotel_name: The COMPLETE and EXACT hotel name to book (e.g., "Cinnamon Grand Colombo", "Cinnamon Lakeside Colombo")
+                   NOT partial names, NOT numbers, NOT "yes/confirm" - only the full hotel name from the database.
     
     Returns:
-        str: Response message with booking confirmation, hotel details, or error message
+        str: Booking confirmation message with next steps
     
-    Usage Examples:
-        # User confirms recommended property: "Yes, I'll book it"
-        confirm_property_selection("book this")
+    Examples of CORRECT usage:
+        User says: "Yes, I'll book it" (single recommendation shown)
+        → LLM calls: confirm_property_selection("Cinnamon Grand Colombo")
         
-        # User selects by name: "I want to book Cinnamon Grand"
-        confirm_property_selection("Cinnamon Grand")
+        User says: "I want option 2" (list of 3 hotels shown, #2 is Cinnamon Lakeside)
+        → LLM calls: confirm_property_selection("Cinnamon Lakeside Colombo")
         
-        # User selects by number from list: "I want option 2"
-        confirm_property_selection("2")
+        User says: "I want to book Cinnamon Grand"
+        → LLM calls: confirm_property_selection("Cinnamon Grand Colombo")
         
-        # User asks for details: "Tell me more about Cinnamon Lakeside"
-        confirm_property_selection("tell me more about Cinnamon Lakeside")
+        User says: "Book the Lakeside hotel"
+        → LLM calls: confirm_property_selection("Cinnamon Lakeside Colombo")
+    
+    Examples of INCORRECT usage (DO NOT DO THIS):
+        ❌ confirm_property_selection("yes")
+        ❌ confirm_property_selection("2")
+        ❌ confirm_property_selection("Grand")
+        ❌ confirm_property_selection("book this")
     """
     sync_from_session_state()
     reservation_state = get_reservation_state()
 
-    # if reservation_state["step"] not in ["property_confirmation", "property_selection"]:
-    #     return "Please wait for a property recommendation first."
-
+    # Get available hotel lists
     recommended_hotels = reservation_state.get("recommended_hotels", [])
     all_location_hotels = reservation_state.get("all_location_hotels", [])
-    selection_lower = selection.lower()
+    current_location = reservation_state.get("location")
     
-    # HANDLE CONFIRMATION FOR RECOMMENDED PROPERTY
-    if selection_lower in ["book this", "yes", "confirm", "sounds good", "perfect", "i'll take it"]:
-        if reservation_state["step"] == "property_confirmation":
-            recommended_property_data = reservation_state.get("recommended_property_data")
-            if recommended_property_data:
-                return proceed_with_booking(recommended_property_data, reservation_state)
-            else:
-                return "I don't have a current recommendation. Please start the property selection again."
-        else:
-            return "No property recommendation to confirm. Please make a selection first."
-    
-    # HANDLE SELECTION BY NUMBER
-    if selection.isdigit():
-        try:
-            choice_num = int(selection)
-            # From alternatives list
-            if all_location_hotels and reservation_state["step"] == "property_selection":
-                if 1 <= choice_num <= len(all_location_hotels):
-                    selected_hotel = all_location_hotels[choice_num - 1]
-                    return proceed_with_booking(selected_hotel, reservation_state)
-                else:
-                    return f"Invalid selection. Please choose a number between 1 and {len(all_location_hotels)}."
-            
-            # From multiple recommendations
-            elif len(recommended_hotels) > 1:
-                if 1 <= choice_num <= len(recommended_hotels):
-                    selected_hotel = recommended_hotels[choice_num - 1]
-                    return proceed_with_booking(selected_hotel, reservation_state)
-                else:
-                    return f"Invalid selection. Please choose a number between 1 and {len(recommended_hotels)}."
-            else:
-                return "No numbered list available. Please select by hotel name instead."
-        except ValueError:
-            return "Invalid number format. Please provide a valid number."
-    
-    # HANDLE "TELL ME MORE ABOUT" DETAILS REQUEST
-    if "tell me more" in selection_lower or "more information" in selection_lower or "details" in selection_lower:
-        target_hotel = None
-        # Extract the hotel name from the query
-        hotel_query = selection_lower.replace("tell me more about", "").replace("more information about", "").replace("details about", "").strip()
-        
-        # Try to match against available hotels
-        available_list = all_location_hotels or recommended_hotels or [reservation_state.get("recommended_property_data")]
-        
-        for hotel in available_list:
-            if hotel and (hotel_query in hotel.get("Name", "").lower() or hotel.get("Name", "").lower() in hotel_query):
-                target_hotel = hotel
-                break
-                
-        if target_hotel:
-            return f"""**{target_hotel['Name']}** - Detailed Information:
-
-📍 **Location:** {target_hotel.get('Location', '')}
-🏨 **Type:** {target_hotel.get('Type', '')}
-
-**Description:**
-{target_hotel.get('UniqueDescription', '')}
-
-**Available Room Types:**
-{chr(10).join(['• ' + room.get('RoomType', '') for room in target_hotel.get('RoomTypes', [])[:3]])}
-
-Would you like to book this property?"""
-        else:
-            return f"Could not find details for '{hotel_query}'. Please check the hotel name or number."
-    
-    # HANDLE DIRECT SELECTION BY NAME
-    # Look through all hotels to find matches
+    # Search for the hotel by exact name match
     hotel_found = None
     
-    # Search in alternatives list first
-    if all_location_hotels and reservation_state["step"] == "property_selection":
-        for hotel in all_location_hotels:
-            if selection_lower in hotel.get("Name", "").lower() or hotel.get("Name", "").lower() in selection_lower:
-                hotel_found = hotel
-                break
-    
-    # Search in recommended hotels
-    if not hotel_found and recommended_hotels:
+    # 1. Search in recommended hotels first
+    if recommended_hotels:
         for hotel in recommended_hotels:
-            if selection_lower in hotel.get("Name", "").lower() or hotel.get("Name", "").lower() in selection_lower:
+            if hotel.get("Name", "").lower() == hotel_name.lower():
                 hotel_found = hotel
                 break
     
+    # 2. Search in all location hotels
+    if not hotel_found and all_location_hotels:
+        for hotel in all_location_hotels:
+            if hotel.get("Name", "").lower() == hotel_name.lower():
+                hotel_found = hotel
+                break
+    
+    # 3. Search entire database as fallback
+    if not hotel_found:
+        try:
+            metadata = load_metadata()
+            all_hotels = metadata.get("HotelsAndResorts", [])
+            
+            for hotel in all_hotels:
+                if hotel.get("Name", "").lower() == hotel_name.lower():
+                    # Validate location match if location is set
+                    if current_location:
+                        hotel_location = hotel.get("Location", "")
+                        hotel_type = hotel.get("Type", "")
+                        
+                        if current_location == "Sri Lanka" and "Sri Lanka" in hotel_location and hotel_type != "Maldives":
+                            hotel_found = hotel
+                            break
+                        elif current_location == "Maldives" and (hotel_type == "Maldives" or "Maldives" in hotel_location):
+                            hotel_found = hotel
+                            break
+                    else:
+                        # No location constraint
+                        hotel_found = hotel
+                        break
+        except Exception as e:
+            print(f"Error searching database: {e}")
+    
+    # If hotel found, proceed with booking
     if hotel_found:
+        # Set location if not already set
+        if not reservation_state.get("location"):
+            if hotel_found.get("Type") == "Maldives" or "Maldives" in hotel_found.get("Location", ""):
+                reservation_state["location"] = "Maldives"
+            elif "Sri Lanka" in hotel_found.get("Location", ""):
+                reservation_state["location"] = "Sri Lanka"
+            sync_to_session_state()
+        
         return proceed_with_booking(hotel_found, reservation_state)
     
-    # If not found and looks like a hotel name query
-    if "cinnamon" in selection_lower or "hotel" in selection_lower or "resort" in selection_lower:
-        available_hotels = all_location_hotels or recommended_hotels
-        if available_hotels:
-            hotel_list = ", ".join([hotel.get("Name", "") for hotel in available_hotels])
-            return f"Hotel '{selection}' not found. Available options: {hotel_list}"
+    # Hotel not found - provide helpful error message
+    available_options = []
+    if recommended_hotels:
+        available_options = [h.get("Name", "") for h in recommended_hotels]
+    elif all_location_hotels:
+        available_options = [h.get("Name", "") for h in all_location_hotels]
     
-    # Fallback - just treat as confirmation if we're in property_confirmation step
-    if reservation_state["step"] == "property_confirmation":
-        recommended_property_data = reservation_state.get("recommended_property_data")
-        if recommended_property_data:
-            return proceed_with_booking(recommended_property_data, reservation_state)
-    
-    return "I'm not sure which property you're referring to. Could you please select from the available options or specify the hotel name more clearly?"
+    if available_options:
+        options_text = "\n".join([f"• {name}" for name in available_options])
+        return f"""I couldn't find a hotel with the exact name '{hotel_name}'.
+
+Available options:
+{options_text}
+
+Please select one of the above properties."""
+    else:
+        return f"I couldn't find '{hotel_name}' in our system. Please start the property selection process again or ask to see available properties."
 
 
 def proceed_with_booking(selected_hotel, reservation_state):

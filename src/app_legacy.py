@@ -218,38 +218,8 @@ graph.set_entry_point("agent")
 runnable = graph.compile()
 
 # Streamlit UI
-st.set_page_config(
-    page_title="Cinnamon Hotels Chatbot", 
-    page_icon="🏨", 
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+st.set_page_config(page_title="Cinnamon Hotels Chatbot", page_icon="🏨", layout="wide")
 
-# Simplified CSS for better iframe embedding
-st.markdown("""
-<style>
-    /* Hide Streamlit branding for cleaner widget appearance */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    /* Optimize for iframe display */
-    .main {
-        padding: 0 !important;
-    }
-    
-    .block-container {
-        padding: 1rem 1.5rem !important;
-        max-width: 100% !important;
-    }
-    
-    /* Improve chat styling */
-    .stChatFloatingInputContainer {
-        background: white;
-        border-top: 1px solid #e5e7eb;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 st.title("🏨 Cinnamon Hotels Assistant")
 st.markdown("*Your personal booking companion*")

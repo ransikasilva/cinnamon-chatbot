@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinnamon Hotels - Chat Widget Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .demo-content {
+            text-align: center;
+            color: white;
+            max-width: 800px;
+        }
+
+        .demo-content h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .demo-content p {
+            font-size: 1.3rem;
+            opacity: 0.95;
+            margin-bottom: 2rem;
+        }
+
+        .demo-content .highlight {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2rem;
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Floating Chat Widget Container */
+        .chat-widget-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+
+        /* Floating Chat Button */
+        .chat-widget-btn {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            border: 4px solid white;
+            animation: pulse-ring 2s infinite;
+        }
+
+        .chat-widget-btn:hover {
+            transform: scale(1.1) rotate(10deg);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .chat-widget-btn.hidden {
+            display: none;
+        }
+
+        .chat-icon {
+            font-size: 36px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0%, 100% {
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(102, 126, 234, 0.4);
+            }
+            50% {
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 0 15px rgba(102, 126, 234, 0);
+            }
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        /* Chat Window */
+        .chat-window {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 440px;
+            height: 680px;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 16px 64px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: scale(0);
+            transform-origin: bottom right;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            opacity: 0;
+            z-index: 9998;
+        }
+
+        .chat-window.open {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        /* Chat Header */
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .chat-header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .chat-header-title .status-dot {
+            width: 10px;
+            height: 10px;
+            background: #4ade80;
+            border-radius: 50%;
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .chat-header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-header-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            font-size: 18px;
+        }
+
+        .chat-header-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+
+        /* Chat Body (iframe) */
+        .chat-body {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chat-body iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+
+        /* Loading State */
+        .chat-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Notification Badge */
+        .notification-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            border: 3px solid white;
+            animation: bounce-badge 0.5s infinite alternate;
+        }
+
+        @keyframes bounce-badge {
+            from {
+                transform: scale(1);
+            }
+            to {
+                transform: scale(1.1);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .chat-window {
+                width: calc(100vw - 20px);
+                height: calc(100vh - 20px);
+                right: 10px;
+                bottom: 10px;
+                border-radius: 16px;
+            }
+
+            .demo-content h1 {
+                font-size: 2rem;
+            }
+
+            .demo-content p {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Demo Page Content -->
+    <div class="demo-content">
+        <h1>🏨 Welcome to Cinnamon Hotels</h1>
+        <p>Explore luxury stays in Sri Lanka and the Maldives</p>
+        <div class="highlight">
+            <h2>👉 Click the chat button in the bottom-right corner!</h2>
+            <p style="font-size: 1rem; margin-top: 1rem;">
+                Our AI-powered chatbot is ready to help you with:
+            </p>
+            <ul style="text-align: left; display: inline-block; margin-top: 1rem;">
+                <li>✨ New reservations</li>
+                <li>📝 Modify existing bookings</li>
+                <li>ℹ️ Hotel information & amenities</li>
+                <li>💬 General inquiries</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Chat Widget -->
+    <div class="chat-widget-container">
+        <!-- Floating Button -->
+        <div class="chat-widget-btn" id="chatBtn" onclick="toggleChat()">
+            <span class="chat-icon">💬</span>
+            <div class="notification-badge" id="notificationBadge" style="display: none;">1</div>
+        </div>
+
+        <!-- Chat Window -->
+        <div class="chat-window" id="chatWindow">
+            <div class="chat-header">
+                <div class="chat-header-title">
+                    <span>🏨</span>
+                    <div>
+                        <div>Cinnamon Hotels</div>
+                        <div style="font-size: 12px; opacity: 0.9; font-weight: 400;">
+                            <span class="status-dot"></span>
+                            Online
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-header-actions">
+                    <button class="chat-header-btn" onclick="toggleChat()" title="Minimize">
+                        ✕
+                    </button>
+                </div>
+            </div>
+            <div class="chat-body">
+                <div class="chat-loading" id="chatLoading">
+                    <div class="spinner"></div>
+                    <p style="color: #6b7280;">Loading chatbot...</p>
+                </div>
+                <!-- Streamlit App Iframe -->
+                <iframe 
+                    id="streamlitIframe"
+                    src="http://localhost:8501"
+                    frameborder="0"
+                    allow="camera; microphone"
+                    style="display: none;"
+                    onload="hideLoading()"
+                ></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isOpen = false;
+        let hasOpened = false;
+
+        function toggleChat() {
+            const chatWindow = document.getElementById('chatWindow');
+            const chatBtn = document.getElementById('chatBtn');
+            const badge = document.getElementById('notificationBadge');
+            
+            isOpen = !isOpen;
+            
+            if (isOpen) {
+                chatWindow.classList.add('open');
+                chatBtn.classList.add('hidden');
+                badge.style.display = 'none';
+                hasOpened = true;
+            } else {
+                chatWindow.classList.remove('open');
+                chatBtn.classList.remove('hidden');
+            }
+        }
+
+        function hideLoading() {
+            const loading = document.getElementById('chatLoading');
+            const iframe = document.getElementById('streamlitIframe');
+            
+            setTimeout(() => {
+                loading.style.display = 'none';
+                iframe.style.display = 'block';
+            }, 500);
+        }
+
+        // Show notification badge after 3 seconds if user hasn't opened chat
+        setTimeout(() => {
+            if (!hasOpened) {
+                document.getElementById('notificationBadge').style.display = 'flex';
+            }
+        }, 3000);
+
+        // Auto-open chat after 5 seconds (optional - comment out if not wanted)
+        // setTimeout(() => {
+        //     if (!hasOpened) {
+        //         toggleChat();
+        //     }
+        // }, 5000);
+    </script>
+</body>
+</html>

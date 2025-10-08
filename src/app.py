@@ -52,7 +52,7 @@ from new_reservation.reservation_tools import (
     check_availability_and_show_rooms,
     confirm_final_reservation,
     confirm_property_selection,
-    get_hotel_information,
+    get_information,
     select_meal_plan,
     select_property_with_ai,
     select_room_type,
@@ -91,7 +91,8 @@ These are the main options you have to assist users:
 4. Other (general questions)
 
 These are tools you have for make a new reservation:
-
+get_information tool for any question user is asking could be a detailed questions about amenities, room types, locations, facilities, comparisons between hotels, etc.
+extract_and_jump_to_booking_details tool - Extracts booking details from a user query and jumps directly to the appropriate step in the booking process
 start_reservation_process tool - This starts the new reservation/booking process if user says something similar to i want to make a booking you can use this tool as it starts the booking/reservation process
 set_destination_preference tool - If user wants to explore the destinations(if user has not mentioned anything about the destination they want then call this.)handles Sri Lanka vs Maldives selection if user gives other than these two options send him a proper concise message saying We are currently operate only in Sri Lanka and Maldives only. Please choose one of these destinations. in that case no need to call the tool
 select_property_with_ai tool - AI-powered property selection based on user preferences
@@ -101,10 +102,9 @@ check_availability_and_show_rooms tool - shows available rooms within budget
 select_room_type tool - handles room selection
 select_meal_plan tool - handles meal plan selection and cost calculation
 confirm_final_reservation tool - shows summary and confirms booking
-get_hotel_information tool for detailed questions about amenities, room types, locations, facilities, comparisons between hotels, etc.
-extract_and_jump_to_booking_details tool - Extracts booking details from a user query and jumps directly to the appropriate step in the booking process
-YOU SHOULD BE ABLE TO USE THESE TOOLS IN A NATURAL, CONVERSATIONAL WAY, ASKING FOLLOW-UP QUESTIONS TO UNDERSTAND USER NEEDS BETTER.
 
+YOU SHOULD BE ABLE TO USE THESE TOOLS IN A NATURAL, CONVERSATIONAL WAY, ASKING FOLLOW-UP QUESTIONS TO UNDERSTAND USER NEEDS BETTER.
+If user says something like I want see all the available hotels in Sri Lanka/Maldives call the get_information tool.
 **IMPORTANT: Flexible Booking Flow:**
 - If a user's INITIAL query contains specific booking information (property name,destination (Sri lanka or Maldives), dates, guests, etc.), ALWAYS use the extract_and_jump_to_booking_details tool FIRST
 - This tool will analyze the query, extract all booking details, and take the user directly to the appropriate step
@@ -163,7 +163,7 @@ def get_cached_llm_with_tools():
         select_room_type,
         select_meal_plan,
         confirm_final_reservation,
-        get_hotel_information,
+        get_information,
         change_existing_booking,
         handle_general_query,
         extract_and_jump_to_booking_details,
@@ -225,7 +225,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Simplified CSS for better iframe embedding
+# Optimized CSS for iframe embedding with compact styling
 st.markdown("""
 <style>
     /* Hide Streamlit branding for cleaner widget appearance */
@@ -239,25 +239,115 @@ st.markdown("""
     }
     
     .block-container {
-        padding: 1rem 1.5rem !important;
+        padding: 0.5rem 1rem !important;
         max-width: 100% !important;
     }
     
-    /* Improve chat styling */
+    /* Compact chat styling */
     .stChatFloatingInputContainer {
         background: white;
         border-top: 1px solid #e5e7eb;
+        padding: 0.5rem !important;
+    }
+    
+    /* Reduce font sizes for iframe */
+    h1 {
+        font-size: 1.5rem !important;
+        margin-bottom: 0.3rem !important;
+    }
+    
+    h2 {
+        font-size: 1.2rem !important;
+        margin-bottom: 0.3rem !important;
+    }
+    
+    h3 {
+        font-size: 1rem !important;
+        margin-bottom: 0.3rem !important;
+    }
+    
+    p, div, span, label {
+        font-size: 0.85rem !important;
+    }
+    
+    /* Compact chat messages */
+    .stChatMessage {
+        padding: 0.5rem !important;
+        margin-bottom: 0.3rem !important;
+    }
+    
+    .stChatMessage p {
+        font-size: 0.85rem !important;
+        line-height: 1.3 !important;
+        margin-bottom: 0.3rem !important;
+    }
+    
+    /* Compact buttons */
+    .stButton > button {
+        padding: 0.4rem 0.8rem !important;
+        font-size: 0.8rem !important;
+        height: auto !important;
+        min-height: 2rem !important;
+    }
+    
+    /* Compact input fields */
+    .stTextInput > div > div > input,
+    .stNumberInput > div > div > input {
+        padding: 0.4rem !important;
+        font-size: 0.85rem !important;
+    }
+    
+    /* Compact date inputs */
+    .stDateInput > div > div > input {
+        padding: 0.4rem !important;
+        font-size: 0.85rem !important;
+    }
+    
+    /* Compact slider */
+    .stSlider {
+        padding: 0.3rem 0 !important;
+    }
+    
+    /* Reduce chat input area */
+    .stChatInput > div {
+        padding: 0.3rem !important;
+    }
+    
+    .stChatInput textarea {
+        font-size: 0.85rem !important;
+        padding: 0.5rem !important;
+        min-height: 2.5rem !important;
+    }
+    
+    /* Compact markdown */
+    .stMarkdown {
+        margin-bottom: 0.3rem !important;
+    }
+    
+    /* Reduce spacing in columns */
+    [data-testid="column"] {
+        padding: 0.2rem !important;
+    }
+    
+    /* Compact divider */
+    hr {
+        margin: 0.5rem 0 !important;
+    }
+    
+    /* Smaller emojis in buttons */
+    .stButton button {
+        line-height: 1.2 !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🏨 Cinnamon Hotels Assistant")
-st.markdown("*Your personal booking companion*")
+st.markdown("<h1>🏨 Cinnamon Hotels Assistant</h1>", unsafe_allow_html=True)
+st.markdown("<p style='font-style: italic; margin-top: -0.5rem; font-size: 0.8rem;'>Your personal booking companion</p>", unsafe_allow_html=True)
 
 
 # Add initial greeting if no messages
 if not st.session_state.messages:
-    welcome_message = f"""Welcome to Cinnamon Hotels! 🌟 
+    welcome_message = f"""Welcome to Cinnamon Hotels!
 
 I'm here to help you with all your hotel needs. What can I do for you today?"""
 
@@ -289,24 +379,24 @@ user_input = None
 
 # Quick action buttons
 if show_welcome_options_buttons:
-    st.markdown("---")
-    st.markdown("### Quick Actions:")
+    st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
+    st.markdown("<h3 style='font-size: 0.9rem; margin-bottom: 0.3rem;'>Quick Actions:</h3>", unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        if st.button("🏨 Make Reservation", key="option1", use_container_width=True):
+        if st.button("New Booking", key="option1", use_container_width=True):
             user_input = "I want to make a new reservation"
 
     with col2:
-        if st.button("📝 Change Booking", key="option2", use_container_width=True):
+        if st.button("Change Booking", key="option2", use_container_width=True,disabled=True):
             user_input = "I need to change my existing booking"
 
     with col3:
-        if st.button("ℹ️ Hotel Info", key="option3", use_container_width=True):
+        if st.button("Info", key="option3", use_container_width=True, disabled=True):
             user_input = "Tell me about your hotels"
 
     with col4:
-        if st.button("💬 Ask Question", key="option4", use_container_width=True):
+        if st.button("Connect to Human", key="option4", use_container_width=True,disabled=True):
             user_input = "I have a general question"
 
 # Interactive widgets during reservation
@@ -314,31 +404,31 @@ if st.session_state.reservation_state["step"] is not None:
     step = st.session_state.reservation_state.get("step", "welcome")
 
     if step == "booking_details":
-        st.markdown("---")
-        st.markdown("### 📅 Complete Your Booking Details")
+        st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
+        st.markdown("<h3 style='font-size: 0.95rem; margin-bottom: 0.5rem;'>📅 Complete Your Booking Details</h3>", unsafe_allow_html=True)
 
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("**Travel Dates:**")
+            st.markdown("<p style='font-weight: bold; font-size: 0.85rem; margin-bottom: 0.2rem;'>Travel Dates:</p>", unsafe_allow_html=True)
             check_in = st.date_input(
                 "Check-in Date",
                 value=st.session_state.reservation_state.get("check_in"),
                 key="checkin_widget",
+                label_visibility="collapsed"
             )
             check_out = st.date_input(
                 "Check-out Date",
                 value=st.session_state.reservation_state.get("check_out"),
                 key="checkout_widget",
+                label_visibility="collapsed"
             )
 
-            st.markdown("**Guests:**")
+            st.markdown("<p style='font-weight: bold; font-size: 0.85rem; margin-bottom: 0.2rem; margin-top: 0.5rem;'>Guests:</p>", unsafe_allow_html=True)
             adults = st.number_input(
                 "Adults",
                 min_value=1,
                 max_value=10,
                 value=st.session_state.reservation_state.get("guests", 2),
-                # value=10,
-
                 key="adults_widget",
             )
 
@@ -351,7 +441,7 @@ if st.session_state.reservation_state["step"] is not None:
             )
 
         with col2:
-            st.markdown("**Budget Range (per night, USD):**")
+            st.markdown("<p style='font-weight: bold; font-size: 0.85rem; margin-bottom: 0.2rem;'>Budget (per night, USD):</p>", unsafe_allow_html=True)
             budget_range = st.slider(
                 "Select your budget range",
                 min_value=50,
@@ -361,8 +451,9 @@ if st.session_state.reservation_state["step"] is not None:
                 ),
                 step=25,
                 key="budget_widget",
+                label_visibility="collapsed"
             )
-            st.write(f"💰 ${budget_range[0]} - ${budget_range[1]} per night")
+            st.markdown(f"<p style='font-size: 0.8rem; margin-top: -0.5rem;'>💰 ${budget_range[0]} - ${budget_range[1]} per night</p>", unsafe_allow_html=True)
 
             rooms_needed = st.number_input(
                 "Number of Rooms",
@@ -372,7 +463,7 @@ if st.session_state.reservation_state["step"] is not None:
                 key="rooms_widget",
             )
 
-        if st.button("✅ Confirm Booking Details", key="confirm_booking_details"):
+        if st.button("✅ Confirm Details", key="confirm_booking_details", use_container_width=True):
             # Update reservation state with widget values
             duration = (check_out - check_in).days if check_out > check_in else 1
             st.session_state.reservation_state.update(
@@ -389,55 +480,43 @@ if st.session_state.reservation_state["step"] is not None:
             user_input = f"Check-in {check_in}, check-out {check_out}, {adults} adults and {children} children, {rooms_needed} room(s), budget ${budget_range[0]}-${budget_range[1]} per night"
 
     elif step == "location":
-        st.markdown("---")
-        st.markdown("### 🌍 Choose Your Destination")
-        st.markdown("Select your preferred destination or type it in the chat:")
+        st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
+        st.markdown("<h3 style='font-size: 0.95rem; margin-bottom: 0.3rem;'>🌍 Choose Your Destination</h3>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size: 0.8rem; margin-bottom: 0.5rem;'>Select your preferred destination or type it in the chat:</p>", unsafe_allow_html=True)
 
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Sri Lanka", key="location_sl", use_container_width=True):
+            if st.button("🇱🇰 Sri Lanka", key="location_sl", use_container_width=True):
                 user_input = "Sri Lanka"
-                # st.success("🇱🇰 Sri Lanka selected!")
 
         with col2:
-            if st.button("Maldives", key="location_maldives", use_container_width=True):
+            if st.button("🏝️ Maldives", key="location_maldives", use_container_width=True):
                 user_input = "Maldives"
-                # st.success("🏝️ Maldives selected!")
-
-        st.markdown("**Or type:** *Sri Lanka* • *Maldives*")
 
     elif step == "property_confirmation":
-        st.markdown("---")
-        st.markdown("### 🤔 What would you like to do?")
-
-        # Show recommended property info if available
-        recommended_property = st.session_state.reservation_state.get(
-            "recommended_property"
-        )
-        # if recommended_property:
-        #     st.info(f"💡 I've recommended **{recommended_property}** based on your preferences!")
+        st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
+        st.markdown("<h3 style='font-size: 0.95rem; margin-bottom: 0.5rem;'>🤔 What would you like to do?</h3>", unsafe_allow_html=True)
 
         col1, col2 = st.columns(2)
         with col1:
             if st.button(
-                "✅ Yes, let's book this!",
+                "✅ Book This",
                 key="confirm_property",
                 use_container_width=True,
             ):
                 user_input = "Yes, let's book this"
-                # st.success("✅ Property confirmed! Let's proceed with booking details.")
 
         with col2:
             if st.button(
-                "🔍 Show me alternatives",
+                "🔍 Alternatives",
                 key="show_alternatives",
                 use_container_width=True,
             ):
                 user_input = "Show me alternatives"
-                # st.info("🔍 Let me show you other available options...")
 
         st.markdown(
-            "**Or tell me more about what you're looking for in the chat below!**"
+            "<p style='font-size: 0.8rem; font-style: italic; margin-top: 0.3rem;'>Or tell me more about what you're looking for in the chat below!</p>",
+            unsafe_allow_html=True
         )
 
 # Regular text input (always available at the bottom)

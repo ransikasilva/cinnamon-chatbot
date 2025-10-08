@@ -102,8 +102,7 @@ def start_reservation_process() -> str:
 
     sync_to_session_state()
 
-    return f"""🌟 **Welcome to Cinnamon Hotels!** I'm excited to help you plan the perfect getaway!
-
+    return f"""
 Let's start with the most important decision - your destination:
 <div>
 <h4>Sri Lanka </h4> <p>Beautiful island with diverse experiences
@@ -128,7 +127,7 @@ Let's start with the most important decision - your destination:
 
 \n\n
 
-Which destination calls to your heart? You can choose using the buttons above or simply tell me! 🌴"""
+Which destination calls to your heart? You can choose using the buttons above or simply tell me!"""
 
 
 @tool
@@ -905,7 +904,7 @@ Need any changes or have questions? Just ask!"""
 
 
 @tool
-def get_hotel_information(query: str) -> str:
+def get_information(query: str) -> str:
     """
     Get detailed information about hotels, amenities, services, or any hotel-related questions.
     

@@ -63,6 +63,9 @@ from new_reservation.reservation_tools import (
     sync_from_session_state,
     sync_to_session_state,
 )
+from new_reservation.smart_orchestrator import (
+    extract_and_jump_to_booking_details,
+)
 
 # Initialize global reservation state with session state values
 sync_from_session_state()
@@ -90,7 +93,7 @@ These are the main options you have to assist users:
 These are tools you have for make a new reservation:
 
 start_reservation_process tool - This starts the new reservation/booking process if user says something similar to i want to make a booking you can use this tool as it starts the booking/reservation process
-set_destination_preference tool - handles Sri Lanka vs Maldives selection if user gives other than these two options send him a proper concise message saying We are currently operate only in Sri Lanka and Maldives only. Please choose one of these destinations. in that case no need to call the tool
+set_destination_preference tool - If user wants to explore the destinations(if user has not mentioned anything about the destination they want then call this.)handles Sri Lanka vs Maldives selection if user gives other than these two options send him a proper concise message saying We are currently operate only in Sri Lanka and Maldives only. Please choose one of these destinations. in that case no need to call the tool
 select_property_with_ai tool - AI-powered property selection based on user preferences
 confirm_property_selection tool - handles user's response to recommendation (accept or alternatives)
 set_booking_details tool - collects dates, guests, children, and budget
@@ -99,7 +102,13 @@ select_room_type tool - handles room selection
 select_meal_plan tool - handles meal plan selection and cost calculation
 confirm_final_reservation tool - shows summary and confirms booking
 get_hotel_information tool for detailed questions about amenities, room types, locations, facilities, comparisons between hotels, etc.
+extract_and_jump_to_booking_details tool - Extracts booking details from a user query and jumps directly to the appropriate step in the booking process
 YOU SHOULD BE ABLE TO USE THESE TOOLS IN A NATURAL, CONVERSATIONAL WAY, ASKING FOLLOW-UP QUESTIONS TO UNDERSTAND USER NEEDS BETTER.
+
+**IMPORTANT: Flexible Booking Flow:**
+- If a user's INITIAL query contains specific booking information (property name,destination (Sri lanka or Maldives), dates, guests, etc.), ALWAYS use the extract_and_jump_to_booking_details tool FIRST
+- This tool will analyze the query, extract all booking details, and take the user directly to the appropriate step
+- Examples: "I want to book Cinnamon Grand" or "Book a room at Cinnamon Bey for 2 adults from Oct 15-18"
 
 **IMPORTANT: Property Selection Flow:**
 - After select_property_with_ai provides a recommendation, ALWAYS use confirm_property_selection tool next
@@ -157,6 +166,7 @@ def get_cached_llm_with_tools():
         get_hotel_information,
         change_existing_booking,
         handle_general_query,
+        extract_and_jump_to_booking_details,
     ]
     return llm.bind_tools(tools), tools
 
@@ -297,6 +307,8 @@ if st.session_state.reservation_state["step"] is not None:
                 min_value=1,
                 max_value=10,
                 value=st.session_state.reservation_state.get("guests", 2),
+                # value=10,
+
                 key="adults_widget",
             )
 

@@ -362,7 +362,16 @@ with chat_container:
         # print(f"DEBUG: Rendering message from {role}: {message.content[:20]}")
         if role == "assistant" and message.content.strip() == "":
             continue  # Skip empty assistant messages
-        with st.chat_message(role):
+
+        if role == "assistant":
+            avatar = "https://img.icons8.com/?size=100&id=59023&format=png&color=000000"  # Hotel icon
+        else:
+            # User avatar
+            avatar = "https://img.icons8.com/?size=100&id=s4mUhvTRUkP2&format=png&color=000000"  # User icon
+        
+       
+        
+        with st.chat_message(role, avatar=avatar):
             st.markdown(message.content, unsafe_allow_html=True)
 
 

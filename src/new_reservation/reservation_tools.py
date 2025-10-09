@@ -168,15 +168,42 @@ Describe your perfect vacation and I'll find the ideal property for you! ✨"""
 
 @tool
 def select_property_with_ai(user_preferences: str) -> str:
-    """Use intelligent property selection with clarifying questions when needed"""
+    """
+    Use intelligent property selection with clarifying questions when needed.
+    
+    Automatically extracts location (Sri Lanka or Maldives) from user_preferences if not already set.
+    
+    Args:
+        user_preferences: User's description of their ideal property/vacation
+        
+    Returns:
+        str: Property recommendations or request for more information
+    """
 
     sync_from_session_state()
     reservation_state = get_reservation_state()
 
-    if reservation_state["step"] != "property_selection":
-        return "Please select your destination first."
-
     location = reservation_state.get("location")
+    
+    # If location is not set, try to extract it from user preferences
+    if not location:
+        extracted_location = extract_location(user_preferences)
+        
+        if extracted_location:
+            # Location found in the query - set it automatically
+            location = extracted_location
+            reservation_state["location"] = location
+            reservation_state["step"] = "property_selection"
+            sync_to_session_state()
+        else:
+            # Location not found - ask user to specify
+            return """I'd love to help you find the perfect property! 
+
+To give you the best recommendations, could you let me know which destination you're interested in?
+• **Sri Lanka** - Beach resorts, city hotels, and cultural experiences
+• **Maldives** - Luxury island resorts and overwater villas
+
+You can simply say "Sri Lanka" or "Maldives", or describe what you're looking for!"""
 
     # Load hotel data
     try:
@@ -584,74 +611,6 @@ You can tell me all at once like:
 Or let's start with your travel dates - when would you like to visit?"""
 
 
-@tool
-def set_booking_details(booking_info: str) -> str:
-    """Collect check-in/out dates, number of guests, children, and budget range"""
-    sync_from_session_state()
-    reservation_state = get_reservation_state()
-
-    if reservation_state["step"] != "booking_details":
-        return "Please select your property first."
-    print(f"Booking info {booking_info}")
-    # Parse booking information from user input
-    parsed_info = parse_booking_details(booking_info)
-    print(f"Parsed Info {parsed_info}")
-    # Update reservation state with parsed information
-    if parsed_info["check_in"]:
-        reservation_state["check_in"] = parsed_info["check_in"]
-    if parsed_info["check_out"]:
-        reservation_state["check_out"] = parsed_info["check_out"]
-    if parsed_info["guests"]:
-        reservation_state["guests"] = parsed_info["guests"]
-    if parsed_info["children"] is not None:
-        reservation_state["children"] = parsed_info["children"]
-    if parsed_info["rooms"]:
-        reservation_state["rooms_needed"] = parsed_info["rooms"]
-    if parsed_info["budget_range"]:
-        reservation_state["budget_range"] = parsed_info["budget_range"]
-
-    # Calculate duration if both dates are available
-    if reservation_state["check_in"] and reservation_state["check_out"]:
-        check_in_date = datetime.strptime(reservation_state["check_in"], "%Y-%m-%d")
-        check_out_date = datetime.strptime(reservation_state["check_out"], "%Y-%m-%d")
-        reservation_state["duration"] = (check_out_date - check_in_date).days
-
-    # Check if we have all required information
-    required_fields = ["check_in", "check_out", "guests", "budget_range"]
-    missing_fields = [
-        field for field in required_fields if not reservation_state.get(field)
-    ]
-
-    if missing_fields:
-        missing_text = ", ".join(missing_fields)
-        return f"I still need: {missing_text}. Please provide this information."
-
-    # All information collected, proceed to availability checking
-    reservation_state["step"] = "availability_check"
-    sync_to_session_state()
-
-    summary = f"""Perfect! Here's what I have:
-
-📅 **Dates:** {reservation_state['check_in']} to {reservation_state['check_out']} ({reservation_state['duration']} nights)
-👥 **Guests:** {reservation_state['guests']} adults"""
-
-    if reservation_state["children"] > 0:
-        summary += f", {reservation_state['children']} children"
-
-    summary += f"""
-🛏️ **Rooms:** {reservation_state['rooms_needed']}
-💰 **Budget:** ${reservation_state['budget_range'][0]}-${reservation_state['budget_range'][1]} per night
-
-Now let me check availability and show you the perfect rooms for your stay!"""
-
-    # Automatically proceed to check availability
-    try:
-        availability_result = check_availability_and_show_rooms("proceed")
-        return summary + "\n\n" + availability_result
-    except Exception as e:
-        print(f"Error in automatic availability check: {e}")
-        return summary + "\n\nI'll check availability for you in just a moment..."
-
 
 @tool
 def check_availability_and_show_rooms(confirmation: str = "proceed") -> str:
@@ -676,7 +635,7 @@ def check_availability_and_show_rooms(confirmation: str = "proceed") -> str:
             budget_min=reservation_state["budget_range"][0],
             budget_max=reservation_state["budget_range"][1],
         )
-        print(f"DEBUG:Available rooms: {available_rooms}")
+        # print(f"DEBUG:Available rooms: {available_rooms}")
         if not available_rooms:
             return f"I'm sorry, no rooms are available at {property_name} for your dates. Would you like to try different dates or see alternative properties?"
 
@@ -985,13 +944,48 @@ RESPOND DIRECTLY TO THE USER'S QUESTION:"""
     
 
 @tool
-def extract_and_jump_to_booking_details(user_query: str) -> str:
+def provide_booking_details(
+    property_name: str = None,
+    location: str = None,
+    check_in: str = None,
+    check_out: str = None,
+    guests: int = None,
+    children: int = None,
+    rooms: int = None,
+    budget_min: int = None,
+    budget_max: int = None
+) -> str:
     """
-    Extract booking information from the user's query and update reservation state,
-    skipping directly to the appropriate step in the booking flow.
+    Provide or update booking details at any point in the reservation process.
+    This unified tool handles both initial booking requests and updates to existing bookings.
+    
+    The LLM should extract booking details from the user's query using conversation context
+    and pass them as individual parameters. The tool intelligently determines what to do based
+    on the current reservation state and which parameters are provided.
+    
+    ✅ USE THIS TOOL WHEN USER PROVIDES ANY BOOKING DETAILS:
+    - Initial request with property: "I want to book Cinnamon Grand for next weekend"
+    - Initial request without property but with details: "Next weekend, 2 adults, budget $300-500" (after property selected)
+    - Updating dates: "Actually, make it the weekend after that"
+    - Changing guests: "Change it to 3 adults instead"
+    - Updating budget: "Increase budget to $500-700"
+    - Complete details: "Oct 15-18, 2 adults, 1 child, budget $200-400"
+    
+    ❌ DO NOT USE THIS TOOL FOR:
+    - General booking request without details: "I want to make a booking" (use start_reservation_process)
+    - Just asking questions: "What hotels are available?" (use get_information)
+    - Property selection without booking details: "I'm looking for a luxury beach resort" (use select_property_with_ai)
     
     Args:
-        user_query (str): The user's initial query that might contain booking details
+        property_name (str, optional): Full hotel/property name (e.g., "Cinnamon Grand Colombo")
+        location (str, optional): Destination - either "Sri Lanka" or "Maldives"
+        check_in (str, optional): Check-in date in YYYY-MM-DD format
+        check_out (str, optional): Check-out date in YYYY-MM-DD format
+        guests (int, optional): Number of adult guests
+        children (int, optional): Number of children
+        rooms (int, optional): Number of rooms needed
+        budget_min (int, optional): Minimum budget per night in USD
+        budget_max (int, optional): Maximum budget per night in USD
         
     Returns:
         str: Response message with next steps
@@ -1000,17 +994,11 @@ def extract_and_jump_to_booking_details(user_query: str) -> str:
     sync_from_session_state()
     reservation_state = get_reservation_state()
     
-    # Extract structured booking details using LLM
-    parsed_info = extract_booking_details_llm(user_query)
-    print(f"LLM parsed booking details: {parsed_info}")
+    print(f"provide_booking_details called with: property={property_name}, location={location}, "
+          f"check_in={check_in}, check_out={check_out}, guests={guests}, children={children}, "
+          f"rooms={rooms}, budget=({budget_min}, {budget_max})")
     
-    # Extract property/hotel name using LLM
-    property_name = extract_property_name(user_query)
-    print(f"Extracted property name: {property_name}")
-    # Extract location (Sri Lanka or Maldives)
-    location = extract_location(user_query)
-    print(f"Extracted location: {location}")
-    # Update reservation state with extracted information
+    # Update reservation state with provided parameters
     if location:
         reservation_state["location"] = location
         
@@ -1025,19 +1013,19 @@ def extract_and_jump_to_booking_details(user_query: str) -> str:
             reservation_state["recommended_property"] = property_data["Name"]
             reservation_state["recommended_property_data"] = property_data
     
-    # Update with other parsed information from LLM
-    if parsed_info.get("check_in"):
-        reservation_state["check_in"] = parsed_info["check_in"]
-    if parsed_info.get("check_out"):
-        reservation_state["check_out"] = parsed_info["check_out"]
-    if parsed_info.get("guests"):
-        reservation_state["guests"] = parsed_info["guests"]
-    if parsed_info.get("children") is not None:
-        reservation_state["children"] = parsed_info["children"]
-    if parsed_info.get("rooms"):
-        reservation_state["rooms_needed"] = parsed_info["rooms"]
-    if parsed_info.get("budget_range"):
-        reservation_state["budget_range"] = parsed_info["budget_range"]
+    # Update with other provided information
+    if check_in:
+        reservation_state["check_in"] = check_in
+    if check_out:
+        reservation_state["check_out"] = check_out
+    if guests:
+        reservation_state["guests"] = guests
+    if children is not None:
+        reservation_state["children"] = children
+    if rooms:
+        reservation_state["rooms_needed"] = rooms
+    if budget_min and budget_max:
+        reservation_state["budget_range"] = [budget_min, budget_max]
 
     # Calculate duration if both dates are available
     if reservation_state.get("check_in") and reservation_state.get("check_out"):
@@ -1048,32 +1036,75 @@ def extract_and_jump_to_booking_details(user_query: str) -> str:
         except Exception as e:
             print(f"Error calculating duration: {e}")
     
-    # Count how many key details we have to determine the best next step
-    details_count = 0
-    key_details = {
-        "property": property_name is not None,
-        "location": location is not None,
-        "check_in": reservation_state.get("check_in") is not None,
-        "check_out": reservation_state.get("check_out") is not None,
-        "guests": reservation_state.get("guests") is not None
-    }
-    details_count = sum(1 for v in key_details.values() if v)
+    # Determine which step to jump to based on current state and available information
+    current_step = reservation_state.get("step")
+    has_property = reservation_state.get("property") is not None
     
+    # If property is already selected or just provided, check if we can proceed to availability
+    if has_property:
+        # We have a property - check if we have all required booking details
+        has_dates = reservation_state.get("check_in") and reservation_state.get("check_out")
+        has_guests = reservation_state.get("guests") is not None
+        has_budget = reservation_state.get("budget_range") is not None
+        
+        if has_dates and has_guests and has_budget:
+            # All required details present - proceed to availability check
+            reservation_state["step"] = "availability_check"
+            sync_to_session_state()
+            
+            summary = f"""Perfect! Here's what I have:
 
-    print(f"Key Details:")
-    # Determine which step to jump to based on available information
-    if key_details["property"]:
-        # If we have property, go to booking details step
-        reservation_state["step"] = "booking_details"
-    elif key_details["location"]:
-        # If we only have location, go to property selection step
-        reservation_state["step"] = "property_selection"
-    elif details_count >= 2:
-        # If we have multiple details but no location/property, start booking process
-        reservation_state["step"] = "location"
+📅 **Dates:** {reservation_state['check_in']} to {reservation_state['check_out']} ({reservation_state['duration']} nights)
+👥 **Guests:** {reservation_state['guests']} adults"""
+
+            if reservation_state.get("children", 0) > 0:
+                summary += f", {reservation_state['children']} children"
+
+            summary += f"""
+🛏️ **Rooms:** {reservation_state['rooms_needed']}
+💰 **Budget:** ${reservation_state['budget_range'][0]}-${reservation_state['budget_range'][1]} per night
+
+Now let me check availability and show you the perfect rooms for your stay!"""
+
+            # Automatically proceed to check availability
+            try:
+                availability_result = check_availability_and_show_rooms("proceed")
+                return summary + "\n\n" + availability_result
+            except Exception as e:
+                print(f"Error in automatic availability check: {e}")
+                return summary + "\n\nI'll check availability for you in just a moment..."
+        else:
+            # Property selected but missing some required details
+            reservation_state["step"] = "booking_details"
+            sync_to_session_state()
+            
+            missing_details = []
+            if not has_dates:
+                missing_details.append("📅 Travel dates (check-in and check-out)")
+            if not has_guests:
+                missing_details.append("👥 Number of guests")
+            if not has_budget:
+                missing_details.append("💰 Budget range per night")
+            
+            if missing_details:
+                return f"""Great! I have your property selected: **{reservation_state['property']}**
+
+To proceed with checking availability, I still need:
+{chr(10).join(['• ' + detail for detail in missing_details])}
+
+Please provide these details so I can find the perfect room for you!"""
+    
     else:
-        # If we have minimal information, just start fresh
+        # No property and no location - need to start fresh
         reservation_state["step"] = "location"
+        sync_to_session_state()
+        
+        return """I'd be happy to help you make a reservation! 
+
+To get started, please let me know:
+🌎 Where would you like to stay - Sri Lanka or Maldives?
+
+Once you let me know your destination, I can help find the perfect property for your stay!"""
     
     # Sync back to session state
     sync_to_session_state()
@@ -1081,7 +1112,7 @@ def extract_and_jump_to_booking_details(user_query: str) -> str:
     # Generate a friendly, personalized response based on what we extracted
     extracted_items = []
     if property_name:
-        extracted_items.append(f"🏨 **Property:** {property_name}")
+        extracted_items.append(f"🏨 **Property:** {reservation_state.get('property', property_name)}")
     
     if reservation_state.get("check_in") and reservation_state.get("check_out"):
         extracted_items.append(f"📅 **Dates:** {reservation_state['check_in']} to {reservation_state['check_out']}")

@@ -13,7 +13,7 @@ _cached_llm = None
 _cached_gemini_llm = None
 
 
-def get_azure_llm():
+def get_llm():
     global _cached_llm
 
     # Return cached LLM if it exists
@@ -24,7 +24,6 @@ def get_azure_llm():
     endpoint = os.getenv("ENDPOINT_URL")
     deployment = os.getenv("DEPLOYMENT_NAME")
     api_key = os.getenv("AZURE_OPENAI_API_KEY")
-    print(f"API_KEY: {api_key}")
     if not api_key:
         raise ValueError("AZURE_OPENAI_API_KEY environment variable is required")
 
@@ -41,7 +40,7 @@ def get_azure_llm():
     return _cached_llm
 
 
-def get_llm():
+def get_gemini_llm():
     global _cached_gemini_llm
 
     # Return cached Gemini LLM if it exists

@@ -364,8 +364,16 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>🏨 Cinnamon Hotels Assistant</h1>", unsafe_allow_html=True)
-st.markdown("<p style='font-style: italic; margin-top: -0.5rem; font-size: 0.8rem;'>Your personal booking companion</p>", unsafe_allow_html=True)
+# Header with clear cache button
+col_title, col_button = st.columns([0.85, 0.15])
+with col_title:
+    st.markdown("<h1>🏨 Cinnamon Hotels Assistant</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='font-style: italic; margin-top: -0.5rem; font-size: 0.8rem;'>Your personal booking companion</p>", unsafe_allow_html=True)
+with col_button:
+    if st.button("🔄 Clear Cache", key="clear_cache_btn", help="Clear cache and reload the app"):
+        st.cache_resource.clear()
+        st.session_state.clear()
+        st.rerun()
 
 
 # Add initial greeting if no messages
@@ -568,16 +576,14 @@ if user_input:
         st.session_state.messages.append(user_msg)
 
         # Run the graph with enhanced feedback
-        with st.spinner("Let me help you with that... 🤔"):
+        with st.spinner("Let me help you with that... 🤗"):
             try:
                 # Sync reservation state before tool execution
                 sync_from_session_state()
 
                 # Invoke with current messages and user session context
                 messages_with_context = st.session_state.messages.copy()
-
                 result = runnable.invoke({"messages": messages_with_context})
-
                 # Sync reservation state back after tool execution
                 sync_to_session_state()
 

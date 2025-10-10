@@ -1040,6 +1040,9 @@ def provide_booking_details(
     current_step = reservation_state.get("step")
     has_property = reservation_state.get("property") is not None
     
+    # Check if this is a fresh booking (property just provided in this call)
+    property_just_provided = property_name is not None
+    
     # If property is already selected or just provided, check if we can proceed to availability
     if has_property:
         # We have a property - check if we have all required booking details
@@ -1047,7 +1050,30 @@ def provide_booking_details(
         has_guests = reservation_state.get("guests") is not None
         has_budget = reservation_state.get("budget_range") is not None
         
-        if has_dates and has_guests and has_budget:
+        # Check if children, rooms, or budget were explicitly provided (not just defaults)
+        children_provided = children is not None
+        rooms_provided = rooms is not None
+        budget_provided = budget_min is not None and budget_max is not None
+        
+        # Only auto-proceed to availability if:
+        # 1. We're NOT in initial booking (property just provided) OR
+        # 2. User explicitly provided children, rooms, AND budget (all details)
+        # 3. AND we have dates and guests
+        can_auto_proceed = (
+            not property_just_provided and 
+            has_dates and 
+            has_guests and 
+            has_budget
+        ) or (
+            property_just_provided and 
+            has_dates and 
+            has_guests and 
+            children_provided and 
+            rooms_provided and 
+            budget_provided
+        )
+        
+        if can_auto_proceed:
             # All required details present - proceed to availability check
             reservation_state["step"] = "availability_check"
             sync_to_session_state()
@@ -1074,25 +1100,33 @@ Now let me check availability and show you the perfect rooms for your stay!"""
                 print(f"Error in automatic availability check: {e}")
                 return summary + "\n\nI'll check availability for you in just a moment..."
         else:
-            # Property selected but missing some required details
+            # Property selected but user should review/confirm details via widget
             reservation_state["step"] = "booking_details"
             sync_to_session_state()
             
-            missing_details = []
-            if not has_dates:
-                missing_details.append("📅 Travel dates (check-in and check-out)")
-            if not has_guests:
-                missing_details.append("👥 Number of guests")
-            if not has_budget:
-                missing_details.append("💰 Budget range per night")
+            # Build a message about what we have so far
+            confirmed_details = []
+            if has_dates:
+                confirmed_details.append(f"📅 Dates: {reservation_state['check_in']} to {reservation_state['check_out']}")
+            if has_guests:
+                confirmed_details.append(f"👥 Guests: {reservation_state['guests']} adults")
             
-            if missing_details:
-                return f"""Great! I have your property selected: **{reservation_state['property']}**
+            confirmation_msg = f"""Great! I have your property selected: **{reservation_state['property']}**
 
-To proceed with checking availability, I still need:
-{chr(10).join(['• ' + detail for detail in missing_details])}
+"""
+            
+            if confirmed_details:
+                confirmation_msg += "Here's what I have so far:\n" + "\n".join(confirmed_details) + "\n\n"
+            
+            confirmation_msg += """Please review and complete your booking details using the form above. You can adjust:
+• Travel dates (check-in and check-out)
+• Number of guests (adults and children)
+• Number of rooms needed
+• Your budget range per night
 
-Please provide these details so I can find the perfect room for you!"""
+Once you've filled in all details, click **✅ Confirm Details** to proceed!"""
+            
+            return confirmation_msg
     
     else:
         # No property and no location - need to start fresh
@@ -1106,92 +1140,3 @@ To get started, please let me know:
 
 Once you let me know your destination, I can help find the perfect property for your stay!"""
     
-    # Sync back to session state
-    sync_to_session_state()
-    
-    # Generate a friendly, personalized response based on what we extracted
-    extracted_items = []
-    if property_name:
-        extracted_items.append(f"🏨 **Property:** {reservation_state.get('property', property_name)}")
-    
-    if reservation_state.get("check_in") and reservation_state.get("check_out"):
-        extracted_items.append(f"📅 **Dates:** {reservation_state['check_in']} to {reservation_state['check_out']}")
-        if reservation_state.get("duration"):
-            extracted_items[-1] += f" ({reservation_state['duration']} nights)"
-    
-    if reservation_state.get("guests"):
-        guest_text = f"👥 **Guests:** {reservation_state['guests']} adults"
-        if reservation_state.get("children", 0) > 0:
-            guest_text += f", {reservation_state['children']} children"
-        extracted_items.append(guest_text)
-    
-    if reservation_state.get("rooms_needed", 1) > 1:
-        extracted_items.append(f"�️ **Rooms:** {reservation_state['rooms_needed']}")
-    
-    if reservation_state.get("budget_range"):
-        extracted_items.append(f"� **Budget:** ${reservation_state['budget_range'][0]}-${reservation_state['budget_range'][1]} per night")
-    
-    if extracted_items:
-        extracted_info = "\n".join(extracted_items)
-        
-        if property_name and (reservation_state.get("check_in") and reservation_state.get("check_out") and reservation_state.get("guests")):
-            # Most complete information
-            return f"""Great! I've extracted your booking preferences:
-
-{extracted_info}
-
-You can now fill in any additional details using the form, or tell me more about what you're looking for!"""
-        
-        elif property_name:
-            # We have property but missing other key details
-            missing_details = []
-            if not reservation_state.get("check_in") or not reservation_state.get("check_out"):
-                missing_details.append("📅 When would you like to check in and check out?")
-            if not reservation_state.get("guests"):
-                missing_details.append("👥 How many guests will be staying?")
-            
-            return f"""I see you're interested in **{property_name}**! 
-
-Here's what I have so far:
-{extracted_info}
-
-To proceed with your booking, I just need a few more details:
-{chr(10).join(missing_details)}
-
-You can provide this information in the form above or simply tell me in chat!"""
-        
-        elif location:
-            # We only have location
-            return f"""I see you're interested in visiting {location}! 
-
-{extracted_info if len(extracted_items) > 1 else ''}
-
-Tell me more about what you're looking for in a property:
-• Are you looking for a beach resort, city hotel, or cultural experience?
-• What's your preferred budget range?
-• Any specific amenities or experiences you're seeking?
-
-This will help me recommend the perfect property for your stay!"""
-        
-        else:
-            # We have some booking details but no location or property
-            return f"""I see you're looking to make a reservation! 
-
-Here's what I have so far:
-{extracted_info}
-
-To get started, I just need to know:
-🌎 Where would you like to stay - Sri Lanka or Maldives?
-
-Once you let me know your destination, I can help find the perfect property for your stay!"""
-    else:
-        # We couldn't extract meaningful information
-        return """I'd be happy to help you make a reservation! 
-
-To get started, please let me know:
-🌎 Where would you like to stay - Sri Lanka or Maldives?
-📅 What are your travel dates?
-👥 How many guests will be staying?
-
-You can also tell me if you have a specific Cinnamon property in mind!"""
-

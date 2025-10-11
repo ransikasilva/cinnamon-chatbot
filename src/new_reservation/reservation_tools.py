@@ -17,7 +17,12 @@ from new_reservation.reservation_utils import (
     parse_booking_details,
     extract_property_name,
     extract_booking_details_llm,
-    extract_location,validate_property
+    extract_location,
+    validate_property,
+    extract_guest_count_nlp,
+    extract_property_preferences_nlp,
+    extract_travel_dates_nlp,
+    extract_budget_nlp,
 )
 
 # Global reservation state that syncs with session state
@@ -68,6 +73,264 @@ def get_reservation_state():
     """Get reservation state (global version that works in tools)"""
     global _global_reservation_state
     return _global_reservation_state
+
+
+@tool
+def process_reservation_query(user_query: str) -> str:
+    """
+    Universal query processor that handles ANY user input related to reservations.
+    This is the PRIMARY tool for processing conversational booking queries.
+    
+    Intelligently extracts ALL available information from natural language:
+    - Destination (Sri Lanka or Maldives)
+    - Guest count (solo, couple, family, specific numbers)
+    - Property preferences (coastal, luxury, budget, city, etc.)
+    - Travel dates (next weekend, in December, specific dates)
+    - Budget hints
+    
+    Updates reservation state dynamically and provides contextual next steps.
+    
+    ✅ USE THIS TOOL FOR:
+    - Conversational queries: "I'm a solo traveler planning a trip to Sri Lanka"
+    - Partial information: "Something coastal for next weekend"
+    - Updates: "Actually make it 2 people" or "I prefer luxury hotels"
+    - Exploratory: "Help me plan my trip to Maldives"
+    - ANY booking-related user input that doesn't fit rigid tool parameters
+    
+    ❌ DO NOT USE FOR:
+    - Pure information queries with no booking intent (use get_information)
+    - Final confirmations (use confirm_final_reservation)
+    - Room/meal selection from presented options (use select_room_type, select_meal_plan)
+    
+    Args:
+        user_query: User's natural language input about their reservation
+        
+    Returns:
+        str: Contextual response with next steps based on collected information
+    """
+    sync_from_session_state()
+    reservation_state = get_reservation_state()
+    
+    print(f"🔍 DEBUG: process_reservation_query called with: '{user_query}'")
+    
+    # Store original query for context
+    original_query = user_query
+    
+    # Extract all possible information from the query
+    extracted_info = {}
+    
+    # 1. Extract location (Sri Lanka or Maldives)
+    location = extract_location(user_query)
+    if location:
+        extracted_info['location'] = location
+        reservation_state['location'] = location
+        print(f"✓ Extracted location: {location}")
+    
+    # 2. Extract guest count using NLP
+    guest_info = extract_guest_count_nlp(user_query)
+    if guest_info.get('adults') is not None and guest_info.get('confidence') in ['high', 'medium']:
+        extracted_info['guests'] = guest_info['adults']
+        extracted_info['children'] = guest_info.get('children', 0)
+        reservation_state['guests'] = guest_info['adults']
+        reservation_state['children'] = guest_info.get('children', 0)
+        print(f"✓ Extracted guests: {guest_info['adults']} adults, {guest_info.get('children', 0)} children")
+    
+    # 3. Extract property preferences
+    current_location = reservation_state.get('location')
+    preferences_info = extract_property_preferences_nlp(user_query, current_location)
+    if preferences_info.get('property_type') and preferences_info.get('confidence') in ['high', 'medium']:
+        extracted_info['property_type'] = preferences_info['property_type']
+        extracted_info['preferences'] = {
+            'keywords': preferences_info.get('keywords', []),
+            'description': preferences_info.get('preferences_text', '')
+        }
+        reservation_state['property_type'] = preferences_info['property_type']
+        reservation_state['preferences'].update(extracted_info['preferences'])
+        print(f"✓ Extracted preferences: {preferences_info['property_type']} - {preferences_info.get('keywords', [])}")
+    
+    # 4. Extract travel dates
+    date_info = extract_travel_dates_nlp(user_query)
+    if date_info.get('check_in') and date_info.get('confidence') in ['high', 'medium']:
+        extracted_info['check_in'] = date_info['check_in']
+        extracted_info['check_out'] = date_info['check_out']
+        reservation_state['check_in'] = date_info['check_in']
+        reservation_state['check_out'] = date_info['check_out']
+        if date_info.get('duration'):
+            reservation_state['duration'] = date_info['duration']
+            extracted_info['duration'] = date_info['duration']
+        print(f"✓ Extracted dates: {date_info['check_in']} to {date_info['check_out']}")
+    elif date_info.get('duration'):
+        # Duration mentioned without specific dates
+        extracted_info['duration'] = date_info['duration']
+        reservation_state['duration'] = date_info['duration']
+        print(f"✓ Extracted duration: {date_info['duration']} nights")
+    elif date_info.get('timeframe'):
+        extracted_info['timeframe'] = date_info['timeframe']
+        print(f"✓ Extracted timeframe: {date_info['timeframe']}")
+    
+    # 5. Extract budget
+    budget_info = extract_budget_nlp(user_query)
+    if budget_info.get('budget_min') is not None and budget_info.get('confidence') in ['high', 'medium']:
+        extracted_info['budget_min'] = budget_info['budget_min']
+        extracted_info['budget_max'] = budget_info['budget_max']
+        reservation_state['budget_range'] = [budget_info['budget_min'], budget_info['budget_max']]
+        
+        # If total budget was given, store it for reference
+        if budget_info.get('total_budget'):
+            extracted_info['total_budget'] = budget_info['total_budget']
+            
+        print(f"✓ Extracted budget: ${budget_info['budget_min']}-${budget_info['budget_max']} per night")
+    
+    # 6. Try to extract property name (in case user mentions specific hotel)
+    property_name = extract_property_name(user_query)
+    if property_name:
+        property_data = validate_property(property_name, reservation_state.get('location'))
+        if property_data:
+            extracted_info['property'] = property_data['Name']
+            reservation_state['property'] = property_data['Name']
+            reservation_state['recommended_property'] = property_data['Name']
+            reservation_state['recommended_property_data'] = property_data
+            print(f"✓ Extracted property: {property_data['Name']}")
+    
+    # Sync updated state
+    sync_to_session_state()
+    
+    # Build contextual response based on what we have and what we need
+    return build_contextual_response(reservation_state, extracted_info, original_query)
+
+
+def build_contextual_response(reservation_state: Dict, extracted_info: Dict, original_query: str) -> str:
+    """
+    Build a contextual response based on current reservation state and newly extracted information
+    """
+    # What do we have now?
+    has_location = reservation_state.get('location') is not None
+    has_guests = reservation_state.get('guests') is not None
+    has_preferences = bool(reservation_state.get('property_type') or reservation_state.get('preferences', {}).get('keywords'))
+    has_dates = reservation_state.get('check_in') is not None
+    has_property = reservation_state.get('property') is not None
+    
+    # Acknowledge what was just extracted
+    acknowledgment = ""
+    if extracted_info:
+        acknowledgment = "Perfect! "
+        extracted_items = []
+        
+        if 'location' in extracted_info:
+            extracted_items.append(f"**{extracted_info['location']}**")
+        
+        if 'guests' in extracted_info:
+            guest_text = f"**{extracted_info['guests']} guest" + ("s" if extracted_info['guests'] > 1 else "") + "**"
+            if extracted_info.get('children', 0) > 0:
+                guest_text += f" and **{extracted_info['children']} child" + ("ren" if extracted_info['children'] > 1 else "") + "**"
+            extracted_items.append(guest_text)
+        
+        if 'property_type' in extracted_info or 'preferences' in extracted_info:
+            pref_desc = extracted_info.get('preferences', {}).get('description', extracted_info.get('property_type', ''))
+            if pref_desc:
+                extracted_items.append(f"**{pref_desc}**")
+        
+        if 'check_in' in extracted_info:
+            extracted_items.append(f"**{extracted_info['check_in']} to {extracted_info['check_out']}**")
+        elif 'duration' in extracted_info:
+            extracted_items.append(f"**{extracted_info['duration']} nights**")
+        elif 'timeframe' in extracted_info:
+            extracted_items.append(f"**{extracted_info['timeframe']}**")
+        
+        if 'budget_min' in extracted_info:
+            extracted_items.append(f"**${extracted_info['budget_min']}-${extracted_info['budget_max']} per night**")
+        
+        if 'property' in extracted_info:
+            extracted_items.append(f"**{extracted_info['property']}**")
+        
+        if extracted_items:
+            acknowledgment += "I've got: " + ", ".join(extracted_items) + ". "
+    
+    # Determine next step based on what we have
+    response = acknowledgment
+    
+    # SCENARIO 1: We have a specific property - move toward booking details
+    if has_property:
+        if has_dates and has_guests:
+            # Ready to check availability
+            reservation_state['step'] = 'availability_check'
+            sync_to_session_state()
+            response += f"\n\nLet me check availability at **{reservation_state['property']}** for your dates!"
+            
+            # Auto-trigger availability check
+            try:
+                from new_reservation.reservation_tools import check_availability_and_show_rooms
+                availability_result = check_availability_and_show_rooms("proceed")
+                return response + "\n\n" + availability_result
+            except Exception as e:
+                print(f"Error auto-checking availability: {e}")
+                return response
+        else:
+            # Need dates or guests
+            reservation_state['step'] = 'booking_details'
+            sync_to_session_state()
+            missing = []
+            if not has_dates:
+                missing.append("📅 **travel dates**")
+            if not has_guests:
+                missing.append("👥 **number of guests**")
+            
+            response += f"\n\nGreat choice on **{reservation_state['property']}**! To proceed, I need: {' and '.join(missing)}."
+            return response
+    
+    # SCENARIO 2: We have location + preferences - recommend property
+    if has_location and has_preferences:
+        # Build preference description for AI selection
+        pref_keywords = reservation_state.get('preferences', {}).get('keywords', [])
+        property_type = reservation_state.get('property_type', '')
+        
+        preference_desc = f"{property_type} property"
+        if pref_keywords:
+            preference_desc += f" with {', '.join(pref_keywords)}"
+        
+        response += f"\n\nLet me find the perfect {preference_desc} in **{reservation_state['location']}** for you!\n\n"
+        
+        # Call select_property_with_ai
+        try:
+            from new_reservation.reservation_tools import select_property_with_ai
+            property_result = select_property_with_ai(preference_desc)
+            return response + property_result
+        except Exception as e:
+            print(f"Error calling select_property_with_ai: {e}")
+            return response + f"I'll help you find the perfect property. What specific features are most important to you?"
+    
+    # SCENARIO 3: We have location but no preferences - ask for preferences
+    if has_location and not has_preferences:
+        reservation_state['step'] = 'property_selection'
+        sync_to_session_state()
+        
+        response += f"\n\nWonderful! **{reservation_state['location']}** is an amazing destination! 🌴\n\n"
+        response += "To find your perfect property, tell me more about what you're looking for:\n\n"
+        response += "• **Beach relaxation** or **city exploration**?\n"
+        response += "• **Luxury resort** or **budget-friendly** accommodation?\n"
+        response += "• Any specific features or amenities you'd like?\n\n"
+        response += "Or simply describe your ideal vacation and I'll find the perfect match!"
+        
+        return response
+    
+    # SCENARIO 4: No location - ask for destination
+    if not has_location:
+        reservation_state['step'] = 'location'
+        sync_to_session_state()
+        
+        response += "\n\nI'd love to help you plan your trip! 🌍\n\n"
+        response += "First, which destination are you interested in?\n\n"
+        response += "🇱🇰 **Sri Lanka** - Beaches, culture, and diverse experiences\n"
+        response += "🏝️ **Maldives** - Luxury island resorts and crystal waters\n\n"
+        response += "Let me know and I'll help you find the perfect property!"
+        
+        return response
+    
+    # FALLBACK: Generic helpful response
+    reservation_state['step'] = 'property_selection'
+    sync_to_session_state()
+    response += "\n\nI'm here to help you plan the perfect trip! What would you like to know more about?"
+    return response
 
 
 @tool
@@ -596,19 +859,81 @@ def proceed_with_booking(selected_hotel, reservation_state):
     reservation_state["all_location_hotels"] = []
     sync_to_session_state()
 
-    return f"""Excellent choice! 🎉 **{selected_hotel['Name']}** it is!
-
-Now let's plan your perfect stay. I need to know:
-
-📅 **Travel Dates** - When would you like to check in and check out?
-👥 **Guests** - How many adults and children?  
-🛏️ **Rooms** - How many rooms do you need?
-💰 **Budget** - What's your preferred budget range per night?
-
-You can tell me all at once like:
-*"January 15-20, 2025 for 2 adults and 1 child, 1 room, budget $300-500 per night"*
-
-Or let's start with your travel dates - when would you like to visit?"""
+    # Build response based on what information we already have
+    response = f"Excellent choice! 🎉 **{selected_hotel['Name']}** it is!\n\n"
+    
+    # Check what information we already have
+    has_dates = reservation_state.get('check_in') is not None
+    has_timeframe = reservation_state.get('duration') is not None or reservation_state.get('timeframe') is not None
+    has_guests = reservation_state.get('guests') is not None
+    has_budget = reservation_state.get('budget_range') is not None and reservation_state['budget_range'] != [100, 500]
+    
+    # Show what we have so far
+    confirmed_details = []
+    if has_guests:
+        guest_text = f"� {reservation_state['guests']} adult" + ("s" if reservation_state['guests'] > 1 else "")
+        if reservation_state.get('children', 0) > 0:
+            guest_text += f", {reservation_state['children']} child" + ("ren" if reservation_state['children'] > 1 else "")
+        confirmed_details.append(guest_text)
+    
+    if has_dates:
+        from datetime import datetime
+        check_in_date = datetime.strptime(reservation_state['check_in'], "%Y-%m-%d")
+        check_out_date = datetime.strptime(reservation_state['check_out'], "%Y-%m-%d")
+        duration = (check_out_date - check_in_date).days
+        confirmed_details.append(f"📅 {reservation_state['check_in']} to {reservation_state['check_out']} ({duration} nights)")
+    elif has_timeframe:
+        if reservation_state.get('duration'):
+            confirmed_details.append(f"📅 {reservation_state['duration']} nights")
+    
+    if has_budget:
+        confirmed_details.append(f"💰 ${reservation_state['budget_range'][0]}-${reservation_state['budget_range'][1]} per night")
+    
+    # Show confirmed details if we have any
+    if confirmed_details:
+        response += "Here's what I have so far:\n" + "\n".join(confirmed_details) + "\n\n"
+    
+    # CRITICAL: We need ACTUAL DATES (check_in/check_out) to check availability
+    # Duration or timeframe alone is NOT sufficient
+    missing_info = []
+    
+    # Check for actual dates - duration/timeframe is not enough for availability check
+    if not has_dates:
+        if has_timeframe:
+            # We have duration/timeframe but not actual dates
+            if reservation_state.get('duration'):
+                missing_info.append(f"📅 **Specific dates** for your {reservation_state['duration']} night stay")
+            elif reservation_state.get('timeframe'):
+                missing_info.append(f"📅 **Specific dates** in {reservation_state.get('timeframe')}")
+            else:
+                missing_info.append("📅 **Travel dates** (check-in and check-out)")
+        else:
+            missing_info.append("📅 **Travel dates** (check-in and check-out)")
+    
+    if not has_guests:
+        missing_info.append("👥 **Number of guests** (adults and children)")
+    
+    if not has_budget:
+        missing_info.append("💰 **Budget range** per night")
+    
+    if missing_info:
+        response += "To complete your booking, please provide:\n" + "\n".join(missing_info) + "\n\n"
+        
+        # Add helpful hint if we have timeframe/duration but need specific dates
+        if has_timeframe and not has_dates:
+            if reservation_state.get('timeframe'):
+                response += f"💡 *Tip: I know you want to travel in {reservation_state.get('timeframe')}, but I need specific check-in and check-out dates to check room availability.*\n\n"
+            elif reservation_state.get('duration'):
+                response += f"💡 *Tip: I know you want a {reservation_state.get('duration')} night stay, but I need specific check-in and check-out dates to check room availability.*\n\n"
+        
+        response += "You can use the form above or tell me in the chat!"
+    else:
+        # We have ALL required info including ACTUAL dates - ready to check availability
+        response += "Perfect! I have all the details. Let me check availability for you!"
+        reservation_state["step"] = "availability_check"
+        sync_to_session_state()
+    
+    return response
 
 
 

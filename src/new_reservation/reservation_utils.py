@@ -386,3 +386,253 @@ def validate_property(property_name: str, location: Optional[str]) -> Optional[D
     except Exception as e:
         print(f"Error validating property: {e}")
         return None
+
+
+def extract_guest_count_nlp(query: str) -> Dict:
+    """
+    Extract guest count from natural language using LLM
+    
+    Examples:
+        "solo traveler" -> {"adults": 1, "children": 0}
+        "couple" -> {"adults": 2, "children": 0}
+        "me and my wife" -> {"adults": 2, "children": 0}
+        "family of 4" -> {"adults": 2, "children": 2} (assumption)
+        "3 adults and 2 kids" -> {"adults": 3, "children": 2}
+        "traveling with my 2 children" -> {"adults": 1, "children": 2}
+    """
+    try:
+        llm = get_llm()
+        
+        prompt = f"""Extract the number of guests from this query.
+
+USER QUERY: "{query}"
+
+Return ONLY valid JSON with this exact format:
+{{
+  "adults": <number of adult guests, integer>,
+  "children": <number of children, integer>,
+  "confidence": <"high", "medium", or "low">
+}}
+
+RULES:
+- "solo" or "solo traveler" = 1 adult, 0 children
+- "couple" or "me and my wife/husband/partner" = 2 adults, 0 children  
+- "family of X" where X ≤ 4 = 2 adults, (X-2) children
+- "family of X" where X > 4 = round(X/2) adults, remaining children
+- "X adults and Y children/kids" = X adults, Y children
+- "traveling with X kids/children" = 1 adult, X children
+- "group of X" = X adults, 0 children (unless kids mentioned)
+- If no guest info found, return {{"adults": null, "children": null, "confidence": "low"}}
+
+EXAMPLES:
+- "solo traveler to Sri Lanka" -> {{"adults": 1, "children": 0, "confidence": "high"}}
+- "me and my wife" -> {{"adults": 2, "children": 0, "confidence": "high"}}
+- "family of 4" -> {{"adults": 2, "children": 2, "confidence": "medium"}}
+- "3 adults 2 kids" -> {{"adults": 3, "children": 2, "confidence": "high"}}
+"""
+        
+        response = llm.invoke(prompt)
+        response_text = response.content if hasattr(response, "content") else str(response)
+        
+        # Extract JSON
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            result = json.loads(json_match.group(0))
+            return result
+        
+        return {"adults": None, "children": None, "confidence": "low"}
+        
+    except Exception as e:
+        print(f"Error extracting guest count: {e}")
+        return {"adults": None, "children": None, "confidence": "low"}
+
+
+def extract_property_preferences_nlp(query: str, location: Optional[str] = None) -> Dict:
+    """
+    Extract property preferences from natural language
+    
+    Examples:
+        "something coastal" -> {"property_type": "coastal", "keywords": ["beach", "ocean"]}
+        "luxury beachfront resort" -> {"property_type": "luxury beach", "keywords": ["luxury", "beach"]}
+        "budget city hotel" -> {"property_type": "budget city", "keywords": ["budget", "city"]}
+        "romantic getaway" -> {"property_type": "romantic", "keywords": ["romantic", "couples"]}
+    """
+    try:
+        llm = get_llm()
+        
+        location_context = f"\nDESTINATION: {location}" if location else ""
+        
+        prompt = f"""Extract property preferences and characteristics from this query.{location_context}
+
+USER QUERY: "{query}"
+
+Return ONLY valid JSON with this exact format:
+{{
+  "property_type": "<coastal|city|cultural|luxury|budget|family|romantic|business|adventure|null>",
+  "keywords": [<list of relevant preference keywords>],
+  "preferences_text": "<natural language summary of preferences>",
+  "confidence": "<high|medium|low>"
+}}
+
+PROPERTY TYPE MAPPING:
+- "coastal", "beach", "beachfront", "seaside", "ocean" -> "coastal"
+- "city", "urban", "downtown", "business district" -> "city"  
+- "cultural", "heritage", "historical", "traditional" -> "cultural"
+- "luxury", "premium", "high-end", "5-star" -> "luxury"
+- "budget", "affordable", "cheap", "value" -> "budget"
+- "family", "kids", "children" -> "family"
+- "romantic", "honeymoon", "couples", "anniversary" -> "romantic"
+- "business", "corporate", "meetings", "conference" -> "business"
+- "adventure", "activities", "nature", "wildlife" -> "adventure"
+
+EXAMPLES:
+- "something coastal" -> {{"property_type": "coastal", "keywords": ["coastal", "beach"], "preferences_text": "coastal property", "confidence": "high"}}
+- "luxury beachfront" -> {{"property_type": "luxury", "keywords": ["luxury", "beachfront", "upscale"], "preferences_text": "luxury beachfront resort", "confidence": "high"}}
+- "budget city hotel" -> {{"property_type": "budget", "keywords": ["budget", "city", "affordable"], "preferences_text": "budget-friendly city hotel", "confidence": "high"}}
+- No preferences mentioned -> {{"property_type": null, "keywords": [], "preferences_text": "", "confidence": "low"}}
+"""
+        
+        response = llm.invoke(prompt)
+        response_text = response.content if hasattr(response, "content") else str(response)
+        
+        # Extract JSON
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            result = json.loads(json_match.group(0))
+            return result
+        
+        return {"property_type": None, "keywords": [], "preferences_text": "", "confidence": "low"}
+        
+    except Exception as e:
+        print(f"Error extracting property preferences: {e}")
+        return {"property_type": None, "keywords": [], "preferences_text": "", "confidence": "low"}
+
+
+def extract_travel_dates_nlp(query: str, conversation_context: str = "") -> Dict:
+    """
+    Extract travel dates from natural language
+    
+    Examples:
+        "next weekend" -> calculates actual dates
+        "in December" -> {"month": "December", "year": 2025}
+        "Oct 15-18" -> {"check_in": "2025-10-15", "check_out": "2025-10-18"}
+        "3 nights starting Friday" -> calculates dates
+    """
+    try:
+        from datetime import datetime
+        llm = get_llm()
+        
+        today = datetime.now()
+        
+        prompt = f"""Extract travel dates from the user's query. Today is {today.strftime('%A, %B %d, %Y')}.
+
+USER QUERY: "{query}"
+CONVERSATION CONTEXT: "{conversation_context}"
+
+Return ONLY valid JSON with this exact format:
+{{
+  "check_in": "<YYYY-MM-DD or null>",
+  "check_out": "<YYYY-MM-DD or null>",
+  "duration": <number of nights or null>,
+  "timeframe": "<specific timeframe like 'December 2025' or 'next month' or null>",
+  "confidence": "<high|medium|low>"
+}}
+
+RULES:
+- Convert relative dates to absolute dates (YYYY-MM-DD format)
+- "next weekend" = upcoming Saturday-Sunday
+- "this weekend" = current Saturday-Sunday (if before Saturday) or next weekend (if after Saturday)
+- "next week" = 7 days from today
+- Month names without year assume current year if month hasn't passed, otherwise next year
+- If only duration mentioned (e.g., "3 nights"), set duration but leave dates null
+- If no date info found, return all null values
+
+EXAMPLES:
+- "next weekend" (today is Thursday Oct 10) -> {{"check_in": "2025-10-11", "check_out": "2025-10-12", "duration": 1, "timeframe": "weekend", "confidence": "high"}}
+- "in December" -> {{"check_in": null, "check_out": null, "duration": null, "timeframe": "December 2025", "confidence": "medium"}}
+- "3 nights" -> {{"check_in": null, "check_out": null, "duration": 3, "timeframe": null, "confidence": "medium"}}
+"""
+        
+        response = llm.invoke(prompt)
+        response_text = response.content if hasattr(response, "content") else str(response)
+        
+        # Extract JSON
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            result = json.loads(json_match.group(0))
+            return result
+        
+        return {"check_in": None, "check_out": None, "duration": None, "timeframe": None, "confidence": "low"}
+        
+    except Exception as e:
+        print(f"Error extracting travel dates: {e}")
+        return {"check_in": None, "check_out": None, "duration": None, "timeframe": None, "confidence": "low"}
+
+
+def extract_budget_nlp(query: str) -> Dict:
+    """
+    Extract budget information from natural language
+    
+    Examples:
+        "$700" -> {"budget_min": 600, "budget_max": 800, "total_budget": 700}
+        "$300-500" -> {"budget_min": 300, "budget_max": 500}
+        "under $400" -> {"budget_min": 0, "budget_max": 400}
+        "around $250 per night" -> {"budget_min": 200, "budget_max": 300}
+        "budget is $1000 for 3 nights" -> {"budget_min": 300, "budget_max": 350, "total_budget": 1000}
+    """
+    try:
+        llm = get_llm()
+        
+        prompt = f"""Extract budget information from the user's query.
+
+USER QUERY: "{query}"
+
+Return ONLY valid JSON with this exact format:
+{{
+  "budget_min": <minimum budget per night in USD, integer>,
+  "budget_max": <maximum budget per night in USD, integer>,
+  "total_budget": <total trip budget if mentioned, integer or null>,
+  "budget_type": "<per_night|total|null>",
+  "confidence": "<high|medium|low>"
+}}
+
+RULES:
+- If single value WITHOUT "around" (e.g., "my budget is $700", "$700"), treat as MAXIMUM: min = 0, max = value
+- If explicit range given (e.g., "$300-500"), use exact values
+- "under X" or "below X" -> min: 0, max: X
+- "above X" or "over X" or "at least X" -> min: X, max: X * 2
+- "around X" -> min: X * 0.8, max: X * 1.2 (only when "around" is mentioned)
+- If "per night" mentioned explicitly, budget_type = "per_night"
+- If "total" or "for X nights" mentioned, budget_type = "total", calculate per-night range
+- If total budget and duration both mentioned, calculate: per_night = total / nights
+- Round all values to nearest 10
+
+EXAMPLES:
+- "my budget is $700" -> {{"budget_min": 0, "budget_max": 700, "total_budget": 700, "budget_type": "total", "confidence": "high"}}
+- "$700" -> {{"budget_min": 0, "budget_max": 700, "total_budget": 700, "budget_type": "total", "confidence": "high"}}
+- "$300-500 per night" -> {{"budget_min": 300, "budget_max": 500, "total_budget": null, "budget_type": "per_night", "confidence": "high"}}
+- "under $400" -> {{"budget_min": 0, "budget_max": 400, "total_budget": null, "budget_type": null, "confidence": "high"}}
+- "around $250" -> {{"budget_min": 200, "budget_max": 300, "total_budget": 250, "budget_type": null, "confidence": "medium"}}
+- "at least $500" -> {{"budget_min": 500, "budget_max": 1000, "total_budget": null, "budget_type": null, "confidence": "medium"}}
+- "$1000 for 3 nights" -> {{"budget_min": 0, "budget_max": 330, "total_budget": 1000, "budget_type": "total", "confidence": "high"}}
+- "budget $600 for 2 nights" -> {{"budget_min": 0, "budget_max": 300, "total_budget": 600, "budget_type": "total", "confidence": "high"}}
+"""
+        
+        response = llm.invoke(prompt)
+        response_text = response.content if hasattr(response, "content") else str(response)
+        
+        # Extract JSON
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            result = json.loads(json_match.group(0))
+            return result
+        
+        return {"budget_min": None, "budget_max": None, "total_budget": None, "budget_type": None, "confidence": "low"}
+        
+    except Exception as e:
+        print(f"Error extracting budget: {e}")
+        return {"budget_min": None, "budget_max": None, "total_budget": None, "budget_type": None, "confidence": "low"}

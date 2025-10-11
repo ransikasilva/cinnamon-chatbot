@@ -62,6 +62,7 @@ from new_reservation.reservation_tools import (
     start_reservation_process,
     sync_from_session_state,
     sync_to_session_state,
+    process_reservation_query,
 )
 
 
@@ -122,23 +123,33 @@ These are the main options you have to assist users:
 
 These are tools you have for make a new reservation:
 
-**get_information** - For any questions about hotels, amenities, room types, locations, facilities, comparisons between hotels, etc.
+**process_reservation_query** - 🌟 PRIMARY TOOL for handling conversational booking queries
+  - Use this for ANY natural language input about reservations
+  - Automatically extracts: destination, guest count, preferences, dates, property name, budget
+  - Works with partial information: "solo traveler to Sri Lanka, something coastal"
+  - Handles updates: "actually make it 2 people", "I prefer luxury hotels"
+  - Dynamically updates reservation state and provides contextual next steps
+  - Examples when to use:
+    ✅ "I'm a solo traveler planning a trip to Sri Lanka"
+    ✅ "Something coastal for next weekend"
+    ✅ "Help me plan my honeymoon in Maldives"
+    ✅ "Budget-friendly beach resort for a family of 4"
+    ✅ "I want to visit Sri Lanka, maybe something near the beach"
+    ✅ "Actually, make it 3 adults instead"
+  - DO NOT use for: final confirmations, room/meal selection from presented lists
 
-**start_reservation_process** - Start the booking flow when user wants to make a reservation but hasn't provided specific details
-  - Use when: "I want to make a booking", "I'd like to reserve a room"
-  - Do NOT use when user provides specific booking details (use provide_booking_details instead)
+**get_information** - For questions about hotels WITHOUT booking intent
+  - Use when: "What hotels are available?", "Tell me about Cinnamon Grand", "Compare properties"
+  - DO NOT use when user wants to make a reservation
 
-**provide_booking_details** - The MAIN tool for providing or updating ANY booking details
-  - Use this whenever user provides booking information: property name, dates, guests, children, rooms, or budget
-  - Works for BOTH initial requests AND updates/changes
-  - Examples:
-    ✅ "I want to book Cinnamon Grand for next weekend" (initial with property)
-    ✅ "Next weekend, 2 adults, budget $300-500" (providing details after property selected)
-    ✅ "Actually, make it the weekend after that" (updating dates)
-    ✅ "Change to 3 adults instead" (updating guests)
-    ✅ "Oct 15-18, 2 adults, 1 child, budget $200-400" (complete details)
-  - LLM MUST extract all details from user's query and conversation context, then pass as individual parameters
-  - DO NOT use for: General "I want to book" without details (use start_reservation_process)
+**start_reservation_process** - RARELY USED - only for completely generic "I want to book or I want to make a reservation" with zero details
+  - Use when: "I want to make a booking or similar one like I want to make a reservation or similar ones" (no destination, no preferences, nothing)
+  - DO NOT use when user provides ANY details (use process_reservation_query instead)
+
+**provide_booking_details** - For providing/updating specific booking parameters
+  - Use when you have EXACT values for specific parameters after property is selected
+  - Use when user provides complete details with specific property name and dates
+  - DO NOT use for conversational queries (use process_reservation_query)
 
 **set_destination_preference** - Handle destination selection (Sri Lanka or Maldives)
 
@@ -164,14 +175,29 @@ YOU SHOULD BE ABLE TO USE THESE TOOLS IN A NATURAL, CONVERSATIONAL WAY, ASKING F
 If user says something like I want see all the available hotels in Sri Lanka/Maldives call the get_information tool.
 
 **IMPORTANT: Simplified Booking Flow:**
-- Use **provide_booking_details** whenever user provides ANY booking information (property, dates, guests, budget, etc.)
-- The tool intelligently handles both initial requests and updates based on what information is provided
-- LLM must extract ALL booking details from the query and conversation context, then pass as individual parameters
-- For context changes (e.g., "next weekend" → "the weekend after that"), LLM uses conversation history to calculate correct dates
-- Example flows:
-  * "Book Cinnamon Grand for next weekend" → provide_booking_details(property_name="Cinnamon Grand Colombo", check_in="2025-10-11", check_out="2025-10-12")
-  * "Actually, the weekend after that" → provide_booking_details(check_in="2025-10-18", check_out="2025-10-19") 
-  * "2 adults, budget $300-500" → provide_booking_details(guests=2, budget_min=300, budget_max=500)
+- **PRIMARY APPROACH**: Use **process_reservation_query** for ANY conversational booking input
+  - This tool handles natural language and extracts all information automatically
+  - It works with partial information and builds context over multiple turns
+  - It dynamically determines next steps based on what's collected
+  - Examples: "solo traveler to Sri Lanka", "something coastal", "budget hotel for family"
+  
+- **TRADITIONAL APPROACH**: Use specific tools only when needed
+  - Use **provide_booking_details** only when you have exact parameter values for an already-selected property
+  - Use **get_information** only for pure informational queries with no booking intent
+  - Use **start_reservation_process** only for completely generic "I want to book" with zero details
+
+**CRITICAL: Tool Selection Logic:**
+When user says something about making a reservation or planning a trip:
+1. Does it contain ANY details (destination, preferences, guest hints, dates)? → Use **process_reservation_query**
+2. Is it purely informational with no booking intent? → Use **get_information**
+3. Is it completely generic "I want to book" with nothing else? → Use **start_reservation_process**
+
+Examples:
+- "I'm a solo traveler planning Sri Lanka trip" → **process_reservation_query** ✅
+- "Something coastal" (during booking) → **process_reservation_query** ✅  
+- "Help me plan my honeymoon in Maldives" → **process_reservation_query** ✅
+- "What hotels do you have?" → **get_information** ✅
+- "I want to make a booking" (nothing else) → **start_reservation_process** ✅
 
 **IMPORTANT: Property Selection Flow:**
 - After select_property_with_ai provides a recommendation, ALWAYS use confirm_property_selection tool next
@@ -194,6 +220,7 @@ If user says something like I want see all the available hotels in Sri Lanka/Mal
 - Wait for user response before additional help
 
 **CRITICAL: Handling Competitor Comparisons:**
+But if user asks for comparison only between Cinnamon hotels then help.
 When users mention other hotel brands (Hilton, Marriott, Hyatt, Taj, Shangri-La, etc.) or ask comparative questions like "Is X better than Cinnamon?" or "Should I choose X or Cinnamon?":
 - NEVER directly compare or say "we're better than X"
 - NEVER mention competitor names in your responses
@@ -224,6 +251,7 @@ CRITICAL REMINDERS:
 def get_cached_llm_with_tools():
     llm = get_llm()
     tools = [
+        process_reservation_query,
         start_reservation_process,
         set_destination_preference,
         select_property_with_ai,

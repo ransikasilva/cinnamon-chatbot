@@ -636,3 +636,90 @@ EXAMPLES:
     except Exception as e:
         print(f"Error extracting budget: {e}")
         return {"budget_min": None, "budget_max": None, "total_budget": None, "budget_type": None, "confidence": "low"}
+
+
+def extract_rooms_needed_nlp(query: str, adults: int = None, children: int = None) -> Dict:
+    """
+    Extract number of rooms needed from natural language using LLM
+    
+    Takes into account the number of guests to make intelligent suggestions.
+    
+    Examples:
+        "I need 2 rooms" -> {"rooms": 2, "confidence": "high"}
+        "book 3 rooms for us" -> {"rooms": 3, "confidence": "high"}
+        "just one room" -> {"rooms": 1, "confidence": "high"}
+        "separate rooms for the kids" -> {"rooms": 2, "confidence": "medium"} (if 1 adult + 2 children)
+        "we need separate accommodations" -> {"rooms": 2, "confidence": "medium"}
+        "family room" -> {"rooms": 1, "confidence": "high"}
+        "a couple of rooms" -> {"rooms": 2, "confidence": "high"}
+    
+    Args:
+        query: User's natural language query
+        adults: Number of adults (if known) - helps with intelligent inference
+        children: Number of children (if known) - helps with intelligent inference
+    """
+    try:
+        llm = get_llm()
+        
+        # Build context about guests if available
+        guest_context = ""
+        if adults is not None:
+            guest_context = f"\nGuest context: {adults} adult(s)"
+            if children is not None:
+                guest_context += f", {children} child(ren)"
+        
+        prompt = f"""Extract the number of rooms needed from this query.
+{guest_context}
+
+USER QUERY: "{query}"
+
+Return ONLY valid JSON with this exact format:
+{{
+  "rooms": <number of rooms needed, integer, or null if not mentioned>,
+  "room_type_hint": <"family", "separate", "adjacent", "connecting", or null>,
+  "confidence": <"high", "medium", or "low">
+}}
+
+RULES FOR EXTRACTION:
+- Look for explicit numbers: "2 rooms", "three rooms", "a couple of rooms"
+- "1 room", "one room", "single room", "just one room" = 1 room
+- "2 rooms", "two rooms", "couple of rooms" = 2 rooms  
+- "separate rooms" = infer based on guest count (2+ rooms)
+- "family room" = 1 room (family type)
+- "connecting rooms", "adjacent rooms" = 2 rooms
+- "separate accommodations" = 2+ rooms
+- If no room count mentioned, return {{"rooms": null, "confidence": "low"}}
+
+INTELLIGENT INFERENCE (when explicit count not given):
+- If "separate rooms" or "separate accommodations" mentioned:
+  * With 1 adult + children = assume 2 rooms
+  * With couples (2+ adults) + children = assume 2 rooms
+  * Otherwise = 2 rooms
+- If "family room" mentioned = 1 room with room_type_hint: "family"
+
+EXAMPLES:
+- "I need 2 rooms" -> {{"rooms": 2, "room_type_hint": null, "confidence": "high"}}
+- "book me 3 rooms please" -> {{"rooms": 3, "room_type_hint": null, "confidence": "high"}}
+- "just one room" -> {{"rooms": 1, "room_type_hint": null, "confidence": "high"}}
+- "family room for us" -> {{"rooms": 1, "room_type_hint": "family", "confidence": "high"}}
+- "separate rooms for kids" -> {{"rooms": 2, "room_type_hint": "separate", "confidence": "medium"}}
+- "couple of rooms" -> {{"rooms": 2, "room_type_hint": null, "confidence": "high"}}
+- "connecting rooms please" -> {{"rooms": 2, "room_type_hint": "connecting", "confidence": "high"}}
+- "I want to book Cinnamon Grand" -> {{"rooms": null, "room_type_hint": null, "confidence": "low"}}
+"""
+        
+        response = llm.invoke(prompt)
+        response_text = response.content if hasattr(response, "content") else str(response)
+        
+        # Extract JSON
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            result = json.loads(json_match.group(0))
+            return result
+        
+        return {"rooms": None, "room_type_hint": None, "confidence": "low"}
+        
+    except Exception as e:
+        print(f"Error extracting rooms needed: {e}")
+        return {"rooms": None, "room_type_hint": None, "confidence": "low"}

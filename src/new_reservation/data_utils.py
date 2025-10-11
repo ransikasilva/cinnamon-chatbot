@@ -178,6 +178,7 @@ def check_room_availability(
     Returns:
         List[Dict]: List of available room types with details
     """
+    print(f"INSIDE UTIL FNChecking availability for {property_name} from {check_in} to {check_out}")
     try:
         # Load required data
         room_data = load_room_descriptions()

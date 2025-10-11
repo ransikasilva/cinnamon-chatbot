@@ -629,6 +629,7 @@ RESPOND ONLY WITH VALID JSON, NO OTHER TEXT."""
 
 **{hotel_name}**
 📍 {selected_hotel.get('Location', '')}
+\n\n
 **What would you like to do?**
 Book this or see alternatives?
 """
@@ -714,8 +715,12 @@ def show_property_alternatives() -> str:
         reservation_state["step"] = "property_selection"  # Set to selection mode
         sync_to_session_state()
 
-        # Create alternatives list
+        # Create alternatives list in tabular format
         alternatives_text = f"Here are all our available properties in {location}:\n\n"
+        
+        # Create table header
+        alternatives_text += "| # | Property Name | Location | Price Range |\n"
+        alternatives_text += "|---|---------------|----------|-------------|\n"
 
         for i, hotel in enumerate(location_hotels, 1):
             room_types = hotel.get("RoomTypes", [])
@@ -731,14 +736,12 @@ def show_property_alternatives() -> str:
             else:
                 price_range = "Contact for pricing"
 
-            alternatives_text += f"""**{i}. {hotel.get('Name', '')}**
-📍 {hotel.get('Location', '')}
-💰 {price_range}
-{hotel.get('UniqueDescription', '')}
+            # Add each hotel as a table row
+            alternatives_text += f"| {i} | {hotel.get('Name', '')} | {hotel.get('Location', '')} | {price_range} |\n"
 
-"""
+        alternatives_text += """\n**Ready to choose?**
 
-        alternatives_text += """Please tell me:
+Please tell me:
 • **Which property interests you most?** (by number or name)
 • **What specific features** you're looking for
 • **Your budget preference** or any other requirements
@@ -884,7 +887,7 @@ def proceed_with_booking(selected_hotel, reservation_state):
     sync_to_session_state()
 
     # Build response based on what information we already have
-    response = f"Excellent choice! 🎉 **{selected_hotel['Name']}** it is!\n\n"
+    response = f"Excellent choice! **{selected_hotel['Name']}** it is!\n\n"
     
     # Check what information we already have
     has_dates = reservation_state.get('check_in') is not None
@@ -895,7 +898,7 @@ def proceed_with_booking(selected_hotel, reservation_state):
     # Show what we have so far
     confirmed_details = []
     if has_guests:
-        guest_text = f"� {reservation_state['guests']} adult" + ("s" if reservation_state['guests'] > 1 else "")
+        guest_text = f"{reservation_state['guests']} adult" + ("s" if reservation_state['guests'] > 1 else "")
         if reservation_state.get('children', 0) > 0:
             guest_text += f", {reservation_state['children']} child" + ("ren" if reservation_state['children'] > 1 else "")
         confirmed_details.append(guest_text)
@@ -905,13 +908,13 @@ def proceed_with_booking(selected_hotel, reservation_state):
         check_in_date = datetime.strptime(reservation_state['check_in'], "%Y-%m-%d")
         check_out_date = datetime.strptime(reservation_state['check_out'], "%Y-%m-%d")
         duration = (check_out_date - check_in_date).days
-        confirmed_details.append(f"📅 {reservation_state['check_in']} to {reservation_state['check_out']} ({duration} nights)")
+        confirmed_details.append(f"{reservation_state['check_in']} to {reservation_state['check_out']} ({duration} nights)")
     elif has_timeframe:
         if reservation_state.get('duration'):
-            confirmed_details.append(f"📅 {reservation_state['duration']} nights")
+            confirmed_details.append(f"{reservation_state['duration']} nights")
     
     if has_budget:
-        confirmed_details.append(f"💰 ${reservation_state['budget_range'][0]}-${reservation_state['budget_range'][1]} per night")
+        confirmed_details.append(f"${reservation_state['budget_range'][0]}-${reservation_state['budget_range'][1]} per night")
     
     # Show confirmed details if we have any
     if confirmed_details:
@@ -926,19 +929,19 @@ def proceed_with_booking(selected_hotel, reservation_state):
         if has_timeframe:
             # We have duration/timeframe but not actual dates
             if reservation_state.get('duration'):
-                missing_info.append(f"📅 **Specific dates** for your {reservation_state['duration']} night stay")
+                missing_info.append(f"**Specific dates** for your {reservation_state['duration']} night stay")
             elif reservation_state.get('timeframe'):
-                missing_info.append(f"📅 **Specific dates** in {reservation_state.get('timeframe')}")
+                missing_info.append(f"**Specific dates** in {reservation_state.get('timeframe')}")
             else:
-                missing_info.append("📅 **Travel dates** (check-in and check-out)")
+                missing_info.append("**Travel dates** (check-in and check-out)")
         else:
-            missing_info.append("📅 **Travel dates** (check-in and check-out)")
+            missing_info.append("**Travel dates** (check-in and check-out)")
     
     if not has_guests:
-        missing_info.append("👥 **Number of guests** (adults and children)")
+        missing_info.append("**Number of guests** (adults and children)")
     
     if not has_budget:
-        missing_info.append("💰 **Budget range** per night")
+        missing_info.append("**Budget range** per night")
     
     if missing_info:
         response += "To complete your booking, please provide:\n" + "\n".join(missing_info) + "\n\n"
@@ -1127,13 +1130,13 @@ def select_meal_plan(meal_choice: str) -> str:
 
 **Cost Breakdown:**
 
- 🛏️ **Room Charges:**  \n\n                          
+ **Room Charges:**  \n\n                          
  ${breakdown['room_rate_per_night']}/night × {breakdown['duration']} nights × {breakdown['rooms']} room(s) 
  = ${breakdown['room_cost']:,.2f}    \n\n """
 
     if breakdown["meal_cost"] > 0:
         cost_summary += f"""                                                
-🍽️ **Meal Plan:**     \n\n                          
+**Meal Plan:**     \n\n                          
 ${breakdown['meal_cost_per_person_per_day']}/person/day × {total_people} guest(s) × {breakdown['duration']} days     
  = ${breakdown['meal_cost']:,.2f}        \n\n                   """
 

@@ -409,7 +409,7 @@ with col_title:
     st.markdown("<h1>🏨 Cinnamon Hotels Assistant</h1>", unsafe_allow_html=True)
     st.markdown("<p style='font-style: italic; margin-top: -0.5rem; font-size: 0.8rem;'>Your personal booking companion</p>", unsafe_allow_html=True)
 with col_button:
-    if st.button("🔄 Clear Cache", key="clear_cache_btn", help="Clear cache and reload the app"):
+    if st.button("🔄 Restart Chat", key="clear_cache_btn", help="Clear cache and reload the app"):
         st.cache_resource.clear()
         st.session_state.clear()
         st.rerun()

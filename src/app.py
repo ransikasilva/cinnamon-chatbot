@@ -446,9 +446,11 @@ with chat_container:
 
 
 # Check if we should show option buttons
+# Only show quick action buttons on initial welcome screen (no user interaction yet)
 # print(f"DEBUG: Current reservation step: {st.session_state.reservation_state}")
 show_welcome_options_buttons = False
-if st.session_state.reservation_state["step"] is None:
+if st.session_state.reservation_state["step"] is None and len(st.session_state.messages) <= 1:
+    # Show buttons only when there's just the welcome message (no user interaction yet)
     show_welcome_options_buttons = True
 # else:
 #     show_welcome_options_buttons = False
@@ -590,31 +592,31 @@ if st.session_state.reservation_state["step"] is not None:
             if st.button("🏝️ Maldives", key="location_maldives", use_container_width=True):
                 user_input = "Maldives"
 
-    elif step == "property_confirmation":
-        st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
-        st.markdown("<h3 style='font-size: 0.95rem; margin-bottom: 0.5rem;'>🤔 What would you like to do?</h3>", unsafe_allow_html=True)
+    # elif step == "property_confirmation":
+    #     st.markdown("<hr style='margin: 0.5rem 0;'>", unsafe_allow_html=True)
+    #     st.markdown("<h3 style='font-size: 0.95rem; margin-bottom: 0.5rem;'>🤔 What would you like to do?</h3>", unsafe_allow_html=True)
 
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button(
-                "✅ Book This",
-                key="confirm_property",
-                use_container_width=True,
-            ):
-                user_input = "Yes, let's book this"
+    #     col1, col2 = st.columns(2)
+    #     with col1:
+    #         if st.button(
+    #             "✅ Book This",
+    #             key="confirm_property",
+    #             use_container_width=True,
+    #         ):
+    #             user_input = "Yes, let's book this"
 
-        with col2:
-            if st.button(
-                "🔍 Alternatives",
-                key="show_alternatives",
-                use_container_width=True,
-            ):
-                user_input = "Show me alternatives"
+    #     with col2:
+    #         if st.button(
+    #             "🔍 Alternatives",
+    #             key="show_alternatives",
+    #             use_container_width=True,
+    #         ):
+    #             user_input = "Show me alternatives"
 
-        st.markdown(
-            "<p style='font-size: 0.8rem; font-style: italic; margin-top: 0.3rem;'>Or tell me more about what you're looking for in the chat below!</p>",
-            unsafe_allow_html=True
-        )
+    #     st.markdown(
+    #         "<p style='font-size: 0.8rem; font-style: italic; margin-top: 0.3rem;'>Or tell me more about what you're looking for in the chat below!</p>",
+    #         unsafe_allow_html=True
+    #     )
 
 # Regular text input (always available at the bottom)
 chat_input = st.chat_input("Type your message here... 💬")

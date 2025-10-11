@@ -323,6 +323,7 @@ def build_contextual_response(reservation_state: Dict, extracted_info: Dict, ori
     # - It's from a previous turn (not property_from_current_extraction), OR
     # - It was explicitly mentioned by name in this turn (property_explicitly_mentioned)
     if has_property and (not property_from_current_extraction or property_explicitly_mentioned):
+        print("🎯 SCENARIO 1: Property explicitly selected/confirmed - collecting booking details")
         # Check if we have all CRITICAL booking information
         # Note: We need to distinguish between default values and explicitly provided values
         
@@ -396,6 +397,7 @@ def build_contextual_response(reservation_state: Dict, extracted_info: Dict, ori
     # Show multiple options instead of auto-confirming
     # BUT: Only do this if the property was NOT explicitly mentioned by name
     if has_property and property_from_current_extraction and not property_explicitly_mentioned and has_location and has_preferences:
+        print("🔄 SCENARIO 1B: Property auto-matched from preferences - showing multiple options instead")
         # Clear the auto-selected property and show options
         print(f"🔄 Property '{reservation_state['property']}' was from preference match, not explicit mention - showing options")
         reservation_state['property'] = None
@@ -408,6 +410,7 @@ def build_contextual_response(reservation_state: Dict, extracted_info: Dict, ori
     
     # SCENARIO 2: We have location + preferences - recommend property (show multiple options)
     if has_location and has_preferences and not has_property:
+        print("🏨 SCENARIO 2: Location + preferences provided - recommending properties")
         # Build preference description for AI selection
         pref_keywords = reservation_state.get('preferences', {}).get('keywords', [])
         property_type = reservation_state.get('property_type', '')
@@ -416,7 +419,7 @@ def build_contextual_response(reservation_state: Dict, extracted_info: Dict, ori
         if pref_keywords:
             preference_desc += f" with {', '.join(pref_keywords)}"
         
-        response += f"\n\nLet me find the perfect {preference_desc} in **{reservation_state['location']}** for you!\n\n"
+        # response += f"\n\nLet me find the perfect {preference_desc} in **{reservation_state['location']}** for you!\n\n"
         
         # Call select_property_with_ai
         try:
@@ -429,6 +432,7 @@ def build_contextual_response(reservation_state: Dict, extracted_info: Dict, ori
     
     # SCENARIO 3: We have location but no preferences - ask for preferences
     if has_location and not has_preferences:
+        print("❓ SCENARIO 3: Location provided but no preferences - asking for preferences")
         reservation_state['step'] = 'property_selection'
         sync_to_session_state()
         
@@ -443,6 +447,7 @@ def build_contextual_response(reservation_state: Dict, extracted_info: Dict, ori
     
     # SCENARIO 4: No location - ask for destination
     if not has_location:
+        print("🌍 SCENARIO 4: No location specified - asking for destination")
         reservation_state['step'] = 'location'
         sync_to_session_state()
         
@@ -455,6 +460,7 @@ def build_contextual_response(reservation_state: Dict, extracted_info: Dict, ori
         return response
     
     # FALLBACK: Generic helpful response
+    print("⚠️ FALLBACK SCENARIO: No specific scenario matched - providing generic response")
     reservation_state['step'] = 'property_selection'
     sync_to_session_state()
     response += "\n\nI'm here to help you plan the perfect trip! What would you like to know more about?"
@@ -619,22 +625,20 @@ RESPOND ONLY WITH VALID JSON, NO OTHER TEXT."""
             reservation_state["step"] = "property_confirmation"
             sync_to_session_state()
 
-            return f"""🎉 **Perfect match found!** Based on your preferences:
+            return f""" Here's what we found Based on your preferences:
 
 **{hotel_name}**
 📍 {selected_hotel.get('Location', '')}
+**What would you like to do?**
+Book this or see alternatives?
 """
-        #  **What would you like to do?**
-        # • Say *"Yes, let's book this"* to continue with this recommendation
-        # • Say *"Show me alternatives"* to see other options"""
-
         else:
             # Multiple recommendations - stay in property_selection until user picks one
             reservation_state["recommended_hotels"] = matching_hotels
             reservation_state["step"] = "property_selection"  # Keep in selection mode
             sync_to_session_state()
 
-            response_text = f"""🏨 **Excellent options!** I found {len(matching_hotels)} properties that match your preferences:
+            response_text = f"""I found {len(matching_hotels)} properties that match your preferences:
 
 {reasoning}
 
@@ -652,9 +656,8 @@ RESPOND ONLY WITH VALID JSON, NO OTHER TEXT."""
 """
 
             response_text += """**Ready to choose?**
-• **Select by number or name** (e.g., "1" or "Cinnamon Grand")
-• Say *"Tell me more about [hotel name]"* for details
-• Say *"Show me all alternatives"* for complete list"""
+**Select by number or name**
+Or do you want to show you all available properties?"""
 
             return response_text
 
@@ -1061,14 +1064,9 @@ def select_room_type(room_choice: str) -> str:
         reservation_state["step"] = "meal_selection"
         sync_to_session_state()
 
-        return f"""Excellent choice! 🎉 You've selected: **{selected_room['room_type']}**
-
-💰 Room Rate: ${selected_room['base_rate_per_night']}/night
-📝 {selected_room.get('description', '')}
+        return f"""Excellent choice!  You've selected: **{selected_room['room_type']}**
 
 Now, let's choose your meal plan. What dining experience would you prefer?
-
-🍽️ **Available Meal Plans:**
 
 • **Room Only** - Maximum flexibility to explore local dining
 
@@ -1109,25 +1107,25 @@ def select_meal_plan(meal_choice: str) -> str:
     breakdown = cost_details["breakdown"]
     total_people = breakdown["guests"] + breakdown["children"]
 
-    cost_summary = f"""Perfect! 🌟 Your **{meal_choice}** meal plan is confirmed.
+    cost_summary = f"""Perfect! Your **{meal_choice}** meal plan is confirmed.
 
-📋 **Reservation Summary:**
+**Reservation Summary:**
 
-🏨 **Hotel:** {reservation_state.get('property')}
+**Hotel:** {reservation_state.get('property')}
 
-📅 **Dates:** {reservation_state.get('check_in')} to {reservation_state.get('check_out')} ({breakdown['duration']} nights)
+**Dates:** {reservation_state.get('check_in')} to {reservation_state.get('check_out')} ({breakdown['duration']} nights)
 
-👥 **Guests:** {breakdown['guests']} adults"""
+**Guests:** {breakdown['guests']} adults"""
 
     if breakdown["children"] > 0:
         cost_summary += f", {breakdown['children']} children"
 
     cost_summary += f"""
-�🛏️ **Rooms:** {breakdown['rooms']} x {reservation_state.get('room_type')}
+**Rooms:** {breakdown['rooms']} x {reservation_state.get('room_type')}
 
-🍽️ **Meals:** {meal_choice}
+**Meals:** {meal_choice}
 
-💰 **Cost Breakdown:**
+**Cost Breakdown:**
 
  🛏️ **Room Charges:**  \n\n                          
  ${breakdown['room_rate_per_night']}/night × {breakdown['duration']} nights × {breakdown['rooms']} room(s) 
@@ -1170,22 +1168,22 @@ def confirm_final_reservation(confirmation: str) -> str:
 
         sync_to_session_state()
 
-        return f"""🎉 **BOOKING CONFIRMED!** 
+        return f"""**BOOKING CONFIRMED!** 
 
-📧 **Booking Reference:** {booking_ref}
+**Booking Reference:** {booking_ref}
 
-✅ **Your Reservation:**
-🏨 {reservation_state.get('property')}
-📅 {reservation_state.get('check_in')} to {reservation_state.get('check_out')}
-👥 {reservation_state.get('guests')} guests
-🛏️ {reservation_state.get('room_type')}
-🍽️ {reservation_state.get('meal_type')}
+**Your Reservation:**
+{reservation_state.get('property')}
+{reservation_state.get('check_in')} to {reservation_state.get('check_out')}
+{reservation_state.get('guests')} guests
+{reservation_state.get('room_type')}
+{reservation_state.get('meal_type')}
 
-💰 **Total Cost:** ${reservation_state.get('total_cost')}
+**Total Cost:** ${reservation_state.get('total_cost')}
 
-📧 **A confirmation email will be sent to you shortly with all details.**
+**A confirmation email will be sent to you shortly with all details.**
 
-Thank you for choosing Cinnamon Hotels! We can't wait to welcome you! 🌟
+Thank you for choosing Cinnamon Hotels! We can't wait to welcome you!
 
 Need any changes or have questions? Just ask!"""
 

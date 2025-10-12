@@ -439,8 +439,6 @@ def build_contextual_response(reservation_state: Dict, extracted_info: Dict, ori
         response += f"\n\nWonderful! **{reservation_state['location']}** is an amazing destination! 🌴\n\n"
         response += "To find your perfect property, tell me more about what you're looking for:\n\n"
         response += "• **Beach relaxation** or **city exploration**?\n"
-        response += "• **Luxury resort** or **budget-friendly** accommodation?\n"
-        response += "• Any specific features or amenities you'd like?\n\n"
         response += "Or simply describe your ideal vacation and I'll find the perfect match!"
         
         return response
@@ -555,7 +553,7 @@ TASK: Recommend 1-3 hotels that best match the user preferences, with reasons fo
 RESPOND IN THIS EXACT JSON FORMAT:
 {{
     "recommended_hotels": [list of hotel names that match well],
-    "reasoning": "Brief explanation written directly to the user about why these hotels were selected. Write as if speaking to the user directly (avoid saying 'user's preference' - instead say 'your preferences' or be more direct)",
+    "reasoning": "Brief explanation written directly to the user about why these hotels were selected. Write as if speaking to the user directly (avoid saying 'user's preference' - instead say 'your preferences' or be more direct) Be very concise and short.",
     "individual_reasons": {{
         "Hotel Name 1": ["Reason 1", "Reason 2"],
         "Hotel Name 2": ["Reason 1", "Reason 2"]
@@ -1027,47 +1025,51 @@ def check_availability_and_show_rooms(confirmation: str = "proceed") -> str:
 
 
 @tool
-def select_room_type(room_choice: str) -> str:
-    """Handle room type selection"""
+def select_room_type(room_type_name: str) -> str:
+    """
+    Handle room type selection by exact room type name.
+    
+    Args:
+        room_type_name: The exact room type name from the available rooms list.
+                       For example: "Deluxe Room", "Superior Room", "Suite", etc.
+                       If user says "I want option 2", the LLM should look at the available rooms list,
+                       find what option 2 is, and pass that room's exact name.
+    
+    Returns:
+        str: Confirmation message with meal plan options
+    """
     sync_from_session_state()
     reservation_state = get_reservation_state()
 
-    if reservation_state["step"] != "room_selection":
-        return "Please check room availability first."
+    # if reservation_state["step"] != "room_selection":
+    #     return "Please check room availability first."
 
     # Find the selected room from available rooms
     available_rooms = reservation_state.get("available_rooms", [])
+    
+    if not available_rooms:
+        return "No rooms available. Please check availability first."
+    
+    # Find matching room by exact name
     selected_room = None
-
-    # Try to match by number first
-    import re
-
-    number_match = re.search(r"\b(\d+)\b", room_choice)
-    if number_match:
-        choice_num = int(number_match.group(1))
-        if 1 <= choice_num <= len(available_rooms):
-            selected_room = available_rooms[choice_num - 1]
-
-    # If not found by number, try to match by room type name
+    for room in available_rooms:
+        if room.get("room_type", "").lower() == room_type_name.lower():
+            selected_room = room
+            break
+    
     if not selected_room:
-        for room in available_rooms:
-            if room_choice.lower() in room.get("room_type", "").lower():
-                selected_room = room
-                break
+        # Return available options if room not found
+        available_names = [room.get("room_type", "") for room in available_rooms]
+        return f"Room type '{room_type_name}' not found. Available rooms: {', '.join(available_names)}"
 
-    # Fallback to first room if no match
-    if not selected_room and available_rooms:
-        selected_room = available_rooms[0]
+    reservation_state["room_type"] = selected_room["room_type"]
+    reservation_state["selected_room_data"] = (
+        selected_room  # Store complete room data
+    )
+    reservation_state["step"] = "meal_selection"
+    sync_to_session_state()
 
-    if selected_room:
-        reservation_state["room_type"] = selected_room["room_type"]
-        reservation_state["selected_room_data"] = (
-            selected_room  # Store complete room data
-        )
-        reservation_state["step"] = "meal_selection"
-        sync_to_session_state()
-
-        return f"""Excellent choice!  You've selected: **{selected_room['room_type']}**
+    return f"""Excellent choice!  You've selected: **{selected_room['room_type']}**
 
 Now, let's choose your meal plan. What dining experience would you prefer?
 
@@ -1083,20 +1085,42 @@ Now, let's choose your meal plan. What dining experience would you prefer?
 
 What sounds perfect for your vacation?"""
 
-    else:
-        return "I couldn't find that room type. Please choose from the available options by number or name."
-
 
 @tool
-def select_meal_plan(meal_choice: str) -> str:
-    """Handle meal plan selection and calculate total cost"""
+def select_meal_plan(meal_type: str) -> str:
+    """
+    Handle meal plan selection and calculate total cost.
+    
+    Args:
+        meal_type: The meal plan type. Must be one of:
+                  - "Room Only"
+                  - "Breakfast Included"
+                  - "Half Board"
+                  - "Full Board"
+                  - "All Inclusive"
+    
+    Returns:
+        str: Reservation summary with cost breakdown
+    """
     sync_from_session_state()
     reservation_state = get_reservation_state()
 
-    if reservation_state["step"] != "meal_selection":
-        return "Please select your room type first."
+    # if reservation_state["step"] != "meal_selection":
+    #     return "Please select your room type first."
+    
+    # Validate meal type
+    valid_meal_types = [
+        "Room Only",
+        "Breakfast Included", 
+        "Half Board",
+        "Full Board",
+        "All Inclusive"
+    ]
+    
+    if meal_type not in valid_meal_types:
+        return f"Invalid meal plan. Please choose one of: {', '.join(valid_meal_types)}"
 
-    reservation_state["meal_type"] = meal_choice
+    reservation_state["meal_type"] = meal_type
     reservation_state["step"] = "final_confirmation"
 
     # Calculate total cost using proper calculation
@@ -1110,7 +1134,7 @@ def select_meal_plan(meal_choice: str) -> str:
     breakdown = cost_details["breakdown"]
     total_people = breakdown["guests"] + breakdown["children"]
 
-    cost_summary = f"""Perfect! Your **{meal_choice}** meal plan is confirmed.
+    cost_summary = f"""Perfect! Your **{meal_type}** meal plan is confirmed.
 
 **Reservation Summary:**
 
@@ -1126,7 +1150,7 @@ def select_meal_plan(meal_choice: str) -> str:
     cost_summary += f"""
 **Rooms:** {breakdown['rooms']} x {reservation_state.get('room_type')}
 
-**Meals:** {meal_choice}
+**Meals:** {meal_type}
 
 **Cost Breakdown:**
 
@@ -1150,15 +1174,23 @@ Everything looks perfect! Shall I proceed with the final booking confirmation?""
 
 
 @tool
-def confirm_final_reservation(confirmation: str) -> str:
-    """Finalize the reservation"""
+def confirm_final_reservation(confirm: bool) -> str:
+    """
+    Finalize the reservation and generate booking reference.
+    
+    Args:
+        confirm: True to confirm and finalize the booking, False to cancel
+    
+    Returns:
+        str: Booking confirmation details or cancellation message
+    """
     sync_from_session_state()
     reservation_state = get_reservation_state()
 
     if reservation_state["step"] != "final_confirmation":
         return "Please complete all booking steps first."
 
-    if "yes" in confirmation.lower() or "confirm" in confirmation.lower():
+    if confirm:
         # Generate booking reference
         import random
 
@@ -1189,8 +1221,8 @@ def confirm_final_reservation(confirmation: str) -> str:
 Thank you for choosing Cinnamon Hotels! We can't wait to welcome you!
 
 Need any changes or have questions? Just ask!"""
-
-    return "Please confirm if you'd like to finalize this booking by saying 'Yes, confirm' or let me know if you need any changes."
+    else:
+        return "Booking cancelled. Would you like to make any changes to your reservation or start over?"
 
 
 @tool

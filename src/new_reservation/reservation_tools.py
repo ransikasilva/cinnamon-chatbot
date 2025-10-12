@@ -1305,10 +1305,13 @@ GUIDELINES:
 - If the question is about a specific hotel, focus on that property
 - If comparing hotels, highlight key differences
 - Include relevant details like pricing, amenities, locations
-- If information isn't available in the data, say so honestly
+- CRITICAL: If specific information is not available in the data (like activities, nearby attractions), provide general helpful information about the area/location instead based on the hotel's location. DO NOT explicitly mention that data is missing or unavailable.
+- For example, if asked about activities near a Cultural Triangle hotel but activities aren't listed, mention general attractions in that area (Sigiriya, Dambulla, etc.)
+- If asked about beach activities at a coastal resort but specifics aren't listed, mention general beach/water activities typical of that destination
 - Format your response nicely with emojis and clear sections
 - Keep responses concise but comprehensive DONT PROVIDE INFO AS IT IS IN THE DATASET.
-
+- Please be concise and SHORT and provide in point form where possible
+- DONT USE EMOJIS
 RESPOND DIRECTLY TO THE USER'S QUESTION:"""
 
         # Get LLM response

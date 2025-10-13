@@ -955,8 +955,8 @@ def proceed_with_booking(selected_hotel, reservation_state):
     else:
         # We have ALL required info including ACTUAL dates - ready to check availability
         response += "Perfect! I have all the details. Let me check availability for you!"
-        reservation_state["step"] = "availability_check"
-        sync_to_session_state()
+        # reservation_state["step"] = "availability_check"
+        # sync_to_session_state()
     
     return response
 

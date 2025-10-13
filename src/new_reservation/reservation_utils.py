@@ -476,7 +476,7 @@ Return ONLY valid JSON with this exact format:
 }}
 
 PROPERTY TYPE MAPPING:
-- "coastal", "beach", "beachfront", "seaside", "ocean" -> "coastal"
+- "coastal", "down south","beach", "beachfront", "seaside", "ocean" -> "coastal"
 - "city", "urban", "downtown", "business district" -> "city"  
 - "cultural", "heritage", "historical", "traditional" -> "cultural"
 - "luxury", "premium", "high-end", "5-star" -> "luxury"

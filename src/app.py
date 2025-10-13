@@ -281,7 +281,7 @@ runnable = graph.compile()
 
 # Streamlit UI
 st.set_page_config(
-    page_title="Cinnamon Hotels Chatbot", 
+    page_title="Ayu", 
     page_icon="🏨", 
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -406,7 +406,7 @@ st.markdown("""
 # Header with clear cache button
 col_title, col_button = st.columns([0.85, 0.15])
 with col_title:
-    st.markdown("<h1>🏨 Cinnamon Hotels Assistant</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>🙏 Ayu </h1>", unsafe_allow_html=True)
     st.markdown("<p style='font-style: italic; margin-top: -0.5rem; font-size: 0.8rem;'>Your personal booking companion</p>", unsafe_allow_html=True)
 with col_button:
     if st.button("🔄 Restart Chat", key="clear_cache_btn", help="Clear cache and reload the app"):

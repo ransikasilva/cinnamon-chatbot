@@ -1,108 +1,60 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from simple_responses import get_response, DEFAULT_GREETINGS
 import random
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
 
-# Mock Q&A data for Cinnamon Hotels
-MOCK_RESPONSES = {
-    "rooms": [
-        "We offer a variety of luxurious rooms including Deluxe Rooms, Ocean View Suites, and Presidential Suites. Would you like to know more about a specific room type?",
-        "Our rooms feature modern amenities, complimentary Wi-Fi, air conditioning, and stunning views. Prices start from $150 per night.",
-    ],
-    "eat": [
-        "Cinnamon Hotels offers multiple dining options including our signature restaurant '7 Degrees North', poolside cafe, and 24-hour room service.",
-        "Our chefs prepare authentic Sri Lankan cuisine, international dishes, and fresh seafood. We also cater to special dietary requirements.",
-    ],
-    "dining": [
-        "Experience fine dining at our award-winning restaurants. We offer breakfast buffets, à la carte lunch, and themed dinner nights.",
-        "Our bars serve premium cocktails, local arrack, and a selection of international wines and spirits.",
-    ],
-    "explore": [
-        "Discover Sri Lanka with our curated experiences - whale watching in Mirissa, temple tours in Kandy, or safari adventures in Yala National Park.",
-        "We offer city tours, water sports, cultural experiences, and wellness programs. Our concierge can help plan your perfect itinerary.",
-    ],
-    "help": [
-        "I'm here to assist you! You can ask me about rooms, dining, experiences, booking modifications, or special requests.",
-        "For immediate assistance, call our 24/7 reception at +94 11 249 1000 or email reservations@cinnamonhotels.com",
-    ],
-    "booking": [
-        "To make a booking, you can use our website's booking engine, call us directly, or I can help guide you through the process. When would you like to stay?",
-        "Our best rates are available when you book direct! Check-in is at 2:00 PM and check-out is at 12:00 PM.",
-    ],
-    "spa": [
-        "Our Angsana Spa offers traditional Ayurvedic treatments, aromatherapy, and rejuvenating massages in a tranquil setting.",
-        "Spa services include body scrubs, facials, couple treatments, and wellness packages. Advance booking recommended.",
-    ],
-    "location": [
-        "Cinnamon Hotels has properties across Sri Lanka - from Colombo's bustling city to the pristine beaches of Bentota and cultural heart of Kandy.",
-        "Our hotels are strategically located near major attractions, with easy access to airports and key tourist destinations.",
-    ],
-    "offers": [
-        "Current promotions include: Early Bird Discount (20% off), Extended Stay Offer (4th night free), and Honeymoon Package with complimentary spa.",
-        "Subscribe to our newsletter for exclusive deals and seasonal offers. MICE groups and corporate rates also available.",
-    ],
-    "default": [
-        "That's a great question! Let me help you with that. Could you please provide more details?",
-        "I'm here to make your stay memorable. Would you like information about our rooms, dining, or experiences?",
-        "Thank you for your interest in Cinnamon Hotels. How may I assist you today?",
-    ]
-}
-
-GREETINGS = [
-    "Hello and welcome to Cinnamon Hotels & Resorts! I'm your virtual concierge. How can I help you today?",
-    "Welcome to Cinnamon Hotels! I'm delighted to assist you with your stay. What would you like to know?",
-]
-
-
-def get_response_category(message):
-    """Determine response category based on message content"""
-    message_lower = message.lower()
-
-    if any(word in message_lower for word in ['room', 'suite', 'accommodation', 'stay']):
-        return 'rooms'
-    elif any(word in message_lower for word in ['eat', 'food', 'restaurant', 'meal']):
-        return 'eat'
-    elif any(word in message_lower for word in ['dining', 'dinner', 'lunch', 'breakfast', 'bar', 'drink']):
-        return 'dining'
-    elif any(word in message_lower for word in ['explore', 'tour', 'activity', 'excursion', 'experience']):
-        return 'explore'
-    elif any(word in message_lower for word in ['help', 'assist', 'support', 'contact']):
-        return 'help'
-    elif any(word in message_lower for word in ['book', 'reservation', 'reserve', 'check-in', 'check-out']):
-        return 'booking'
-    elif any(word in message_lower for word in ['spa', 'massage', 'wellness', 'ayurveda']):
-        return 'spa'
-    elif any(word in message_lower for word in ['location', 'where', 'address', 'directions']):
-        return 'location'
-    elif any(word in message_lower for word in ['offer', 'promotion', 'deal', 'discount', 'price']):
-        return 'offers'
-    else:
-        return 'default'
-
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    """Handle chat messages"""
+    """Handle chat messages with simple response mapping"""
     data = request.json
     user_message = data.get('message', '')
 
     if not user_message:
         return jsonify({'error': 'No message provided'}), 400
 
+    # Normalize apostrophes at the entry point - handle various apostrophe encodings
+    user_message = (user_message
+                   .replace('\u2019', "'")  # Right single quotation mark
+                   .replace('\u2018', "'")  # Left single quotation mark
+                   .replace('`', "'")       # Backtick
+                   .replace("'", "'")       # Another variant
+                   .replace("'", "'")       # Another variant
+                   .replace('�', "'"))      # Replacement character (encoding error)
+
+    print(f"DEBUG: User message received: {repr(user_message)}")
+
     # Check if it's a greeting
     if any(word in user_message.lower() for word in ['hi', 'hello', 'hey', 'greetings']):
-        response = random.choice(GREETINGS)
-    else:
-        # Get appropriate response based on message content
-        category = get_response_category(user_message)
-        response = random.choice(MOCK_RESPONSES[category])
+        response_text = random.choice(DEFAULT_GREETINGS)
+        return jsonify({
+            'type': 'text',
+            'response': response_text,
+            'timestamp': datetime.now().isoformat()
+        })
 
-    return jsonify({
-        'response': response,
-        'timestamp': '2025-10-10T12:00:00Z'
-    })
+    # Get simple response
+    response_data = get_response(user_message)
+    print(f"DEBUG: Response data: {response_data}")
+
+    # Handle structured vs text responses
+    if response_data.get('type') == 'structured':
+        return jsonify({
+            'type': 'structured',
+            'data': response_data,
+            'timestamp': datetime.now().isoformat()
+        })
+    else:
+        return jsonify({
+            'type': 'text',
+            'response': response_data.get('response', 'I apologize, I could not understand that.'),
+            'show_map_button': response_data.get('show_map_button', False),
+            'timestamp': datetime.now().isoformat()
+        })
 
 
 @app.route('/api/quick-action', methods=['POST'])
@@ -111,14 +63,20 @@ def quick_action():
     data = request.json
     action = data.get('action', '').lower()
 
-    if action in MOCK_RESPONSES:
-        response = random.choice(MOCK_RESPONSES[action])
-    else:
-        response = "I'm here to help! Please select an option or ask me a question."
+    quick_responses = {
+        'rooms': "We offer luxurious rooms across all our properties. What type of room are you interested in? Sea view, family suites, or executive rooms?",
+        'spa': "Our Angsana Spa offers traditional Ayurvedic treatments, aromatherapy, and rejuvenating massages. Would you like to know about our spa packages?",
+        'dining': "Experience fine dining at our award-winning restaurants. We offer Sri Lankan cuisine, international dishes, and themed dinner nights. What would you like to know?",
+        'explore': "Discover Sri Lanka with our curated experiences - from temple tours to wildlife safaris. Would you like recommendations based on your interests?",
+        'help': "I'm here to assist you! You can ask me about rooms, dining, experiences, or I can help you plan your entire trip. What would you like to know?"
+    }
+
+    response_text = quick_responses.get(action, "I'm here to help! Please select an option or ask me a question.")
 
     return jsonify({
-        'response': response,
-        'timestamp': '2025-10-10T12:00:00Z'
+        'type': 'text',
+        'response': response_text,
+        'timestamp': datetime.now().isoformat()
     })
 
 
@@ -130,3 +88,4 @@ def health():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+

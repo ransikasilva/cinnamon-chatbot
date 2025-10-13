@@ -62,6 +62,8 @@ ROOMS = {
         {"type": "Deluxe Sea View", "price": 160, "availability": "Available"}
     ],
     "CB001": [
+        {"type": "Standard Room", "price": 150, "availability": "Available"},
+        {"type": "Deluxe Room", "price": 195, "availability": "Available"},
         {"type": "Family Suite", "price": 245, "availability": "Limited"}
     ]
 }

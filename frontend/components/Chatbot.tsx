@@ -3,22 +3,25 @@
 import { useState, useRef, useEffect } from 'react'
 import axios from 'axios'
 import styles from './Chatbot.module.css'
-import { IoBed, IoRestaurant, IoCompass, IoHelpCircle } from 'react-icons/io5'
-import { FaSpa } from 'react-icons/fa'
+import StructuredResponse from './StructuredResponse'
+import MapPopup from './MapPopup'
 
 interface Message {
   id: string
-  text: string
+  text?: string
   sender: 'user' | 'bot'
   timestamp: Date
+  structuredData?: any
+  type?: 'text' | 'structured'
+  showMapButton?: boolean
 }
 
 const QUICK_ACTIONS = [
-  { id: 'rooms', label: 'ROOMS', Icon: IoBed },
-  { id: 'spa', label: 'SPA', Icon: FaSpa },
-  { id: 'dining', label: 'DINING', Icon: IoRestaurant },
-  { id: 'explore', label: 'EXPLORE', Icon: IoCompass },
-  { id: 'help', label: 'HELP', Icon: IoHelpCircle },
+  { id: 'booking', label: 'Booking', icon: '/booking.png' },
+  { id: 'edit', label: 'Edit', icon: '/edit.png' },
+  { id: 'dining', label: 'Dinning', icon: '/dining.png' },
+  { id: 'hotels', label: 'Hotels', icon: '/hotels.png' },
+  { id: 'info', label: 'Info', icon: '/info.png' },
 ]
 
 const API_BASE_URL = 'http://localhost:5000'
@@ -35,6 +38,7 @@ export default function Chatbot() {
   ])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isMapOpen, setIsMapOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -68,12 +72,28 @@ export default function Chatbot() {
         message: textToSend
       })
 
-      // Add bot response
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: response.data.response,
-        sender: 'bot',
-        timestamp: new Date()
+      // Handle response based on type
+      let botMessage: Message
+
+      if (response.data.type === 'structured') {
+        // Structured response with cards
+        botMessage = {
+          id: (Date.now() + 1).toString(),
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'structured',
+          structuredData: response.data.data
+        }
+      } else {
+        // Simple text response
+        botMessage = {
+          id: (Date.now() + 1).toString(),
+          text: response.data.response,
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'text',
+          showMapButton: response.data.show_map_button || false
+        }
       }
 
       setMessages(prev => [...prev, botMessage])
@@ -85,7 +105,8 @@ export default function Chatbot() {
         id: (Date.now() + 1).toString(),
         text: 'I apologize, but I\'m having trouble connecting right now. Please try again in a moment or call us at +94 11 249 1000.',
         sender: 'bot',
-        timestamp: new Date()
+        timestamp: new Date(),
+        type: 'text'
       }
       setMessages(prev => [...prev, errorMessage])
     } finally {
@@ -191,12 +212,10 @@ export default function Chatbot() {
                 onClick={() => handleQuickAction(action.id)}
                 disabled={isLoading}
               >
-                <action.Icon className={styles.quickActionIcon} />
-                <span className={styles.quickActionLabel}>{action.label}</span>
+                <img src={action.icon} alt={action.label} className={styles.quickActionIcon} />
               </button>
             ))}
           </div>
-
           {/* Messages */}
           <div className={styles.messagesContainer}>
             {messages.map((message) => (
@@ -209,13 +228,27 @@ export default function Chatbot() {
                 {message.sender === 'bot' && (
                   <div className={styles.messageAvatar}>
                     <img
-                      src="/OIP (2).webp"
+                      src="/ayu.jpg"
                       alt="Virtual Concierge"
                     />
                   </div>
                 )}
                 <div className={styles.messageBubble}>
-                  <p className={styles.messageText}>{message.text}</p>
+                  {message.type === 'structured' && message.structuredData ? (
+                    <StructuredResponse data={message.structuredData} />
+                  ) : (
+                    <>
+                      <p className={styles.messageText}>{message.text}</p>
+                      {message.showMapButton && (
+                        <button
+                          className={styles.mapButton}
+                          onClick={() => setIsMapOpen(true)}
+                        >
+                          🗺️ Open Map
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -224,7 +257,7 @@ export default function Chatbot() {
               <div className={`${styles.messageWrapper} ${styles.botMessage}`}>
                 <div className={styles.messageAvatar}>
                   <img
-                    src="/OIP (2).webp"
+                    src="/ayu.jpg"
                     alt="Virtual Concierge"
                   />
                 </div>
@@ -265,6 +298,9 @@ export default function Chatbot() {
           </div>
         </div>
       )}
+
+      {/* Map Popup */}
+      <MapPopup isOpen={isMapOpen} onClose={() => setIsMapOpen(false)} />
     </>
   )
 }

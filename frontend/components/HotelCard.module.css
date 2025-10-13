@@ -1,0 +1,178 @@
+.hotelCard {
+  background: white;
+  border: 1px solid #E0E0E0;
+  border-radius: 12px;
+  padding: 18px;
+  margin: 12px 0;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.hotelCard:hover {
+  box-shadow: 0 4px 16px rgba(107, 44, 145, 0.15);
+  border-color: #6B2C91;
+  transform: translateY(-2px);
+}
+
+.hotelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.hotelInfo {
+  flex: 1;
+}
+
+.hotelName {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333333;
+  margin: 0 0 6px 0;
+  font-family: var(--font-poppins), sans-serif;
+}
+
+.locationRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.locationIcon {
+  color: #6B2C91;
+  font-size: 14px;
+}
+
+.location {
+  font-size: 13px;
+  color: #666666;
+  font-family: var(--font-inter), sans-serif;
+}
+
+.starsRow {
+  display: flex;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.starIcon {
+  color: #FFB800;
+  font-size: 14px;
+}
+
+.description {
+  font-size: 13px;
+  color: #666666;
+  margin: 12px 0;
+  line-height: 1.6;
+  font-family: var(--font-inter), sans-serif;
+}
+
+.amenities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.amenityBadge {
+  background: #F5F5F5;
+  color: #666666;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-inter), sans-serif;
+}
+
+.roomSection {
+  border-top: 1px solid #E0E0E0;
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.roomInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.roomType {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333333;
+  font-family: var(--font-poppins), sans-serif;
+}
+
+.availability {
+  display: flex;
+  gap: 6px;
+}
+
+.availableBadge {
+  background: #E8F5E9;
+  color: #2E7D32;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-inter), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.limitedBadge {
+  background: #FFF3E0;
+  color: #E65100;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-inter), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pricingRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  background: #FAFAFA;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.priceInfo, .totalInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.priceLabel, .totalLabel {
+  font-size: 11px;
+  color: #999999;
+  font-family: var(--font-inter), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.price {
+  font-size: 20px;
+  font-weight: 700;
+  color: #6B2C91;
+  font-family: var(--font-poppins), sans-serif;
+}
+
+.totalInfo {
+  align-items: flex-end;
+}
+
+.totalPrice {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333333;
+  font-family: var(--font-poppins), sans-serif;
+}

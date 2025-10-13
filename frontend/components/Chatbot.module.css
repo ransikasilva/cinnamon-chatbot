@@ -111,8 +111,8 @@
 /* Quick Actions */
 .quickActions {
   display: flex;
-  gap: 10px;
-  padding: 18px 16px;
+  gap: 8px;
+  padding: 18px 12px;
   background: #6B2C91;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   justify-content: space-evenly;
@@ -121,32 +121,21 @@
 
 .quickActionButton {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 5px;
-  background: white;
-  border: 2px solid #E0E0E0;
-  border-radius: 50%;
-  width: 60px;
-  height: 60px;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  width: 70px;
+  height: 70px;
   cursor: pointer;
   transition: all 0.25s ease;
   flex-shrink: 0;
-  padding: 10px;
+  padding: 0;
   flex: 0 0 auto;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .quickActionButton:hover:not(:disabled) {
-  background: #6B2C91;
-  border-color: #6B2C91;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(107, 44, 145, 0.25);
-}
-
-.quickActionButton:hover:not(:disabled) .quickActionIcon,
-.quickActionButton:hover:not(:disabled) .quickActionLabel {
-  color: white;
 }
 
 .quickActionButton:disabled {
@@ -155,14 +144,14 @@
 }
 
 .quickActionIcon {
-  font-size: 20px;
-  line-height: 1;
-  color: #6B2C91;
-  transition: color 0.25s ease;
+  width: 65px;
+  height: 65px;
+  object-fit: contain;
+  transition: transform 0.25s ease;
 }
 
 .quickActionButton:hover:not(:disabled) .quickActionIcon {
-  color: white;
+  transform: scale(1.05);
 }
 
 .quickActionLabel {
@@ -203,6 +192,10 @@
   gap: 8px;
   max-width: 85%;
   animation: fadeIn 0.3s ease-out;
+}
+
+.messageWrapper:has(.messageBubble > div) {
+  max-width: 95%;
 }
 
 @keyframes fadeIn {
@@ -292,6 +285,35 @@
 
 .botMessage .messageText {
   color: #333333;
+}
+
+/* Map Button */
+.mapButton {
+  margin-top: 12px;
+  padding: 10px 20px;
+  background: #6B2C91;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-poppins), sans-serif;
+  box-shadow: 0 2px 8px rgba(107, 44, 145, 0.3);
+}
+
+.mapButton:hover {
+  background: #8B3FB8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(107, 44, 145, 0.4);
+}
+
+.mapButton:active {
+  transform: translateY(0);
 }
 
 /* Typing Indicator */

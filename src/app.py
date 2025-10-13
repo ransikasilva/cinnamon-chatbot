@@ -434,7 +434,9 @@ with chat_container:
             continue  # Skip empty assistant messages
 
         if role == "assistant":
-            avatar = "https://img.icons8.com/?size=100&id=59023&format=png&color=000000"  # Hotel icon
+            # avatar = "https://img.icons8.com/?size=100&id=59023&format=png&color=000000"  # Hotel icon
+            avatar = "./lady.png"  # Hotel icon
+
         else:
             # User avatar
             avatar = "https://img.icons8.com/?size=100&id=s4mUhvTRUkP2&format=png&color=000000"  # User icon

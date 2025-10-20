@@ -1,16 +1,16 @@
 """
-LangGraph-based reservation workflow with MCP tool integration
+LangGraph-based reservation workflow with LLM-driven agent approach
+Uses LangChain's ReAct agent for dynamic tool selection and reasoning
 """
 import json
 import sys
 import os
 from datetime import datetime
-from typing import Dict, List, Optional, Any, TypedDict, Annotated
-from typing_extensions import TypedDict
+from typing import Dict, List, Optional, Any
 
-from langgraph.graph import StateGraph, END
-from langgraph.graph.message import add_messages
-from langgraph.checkpoint.memory import MemorySaver
+from langchain.agents import AgentExecutor, create_react_agent
+from langchain_core.prompts import PromptTemplate
+from langchain_core.tools import Tool
 
 # Add the parent directory to the path to import models
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -18,50 +18,49 @@ from models import get_llm, get_gemini_llm
 from mcp_tools import MCPToolRegistry
 
 
-class ReservationState(TypedDict):
-    """LangGraph state schema for reservation workflow"""
-    # User input
-    messages: Annotated[list, add_messages]
-    user_query: str
-    session_id: str
+class ReservationState:
+    """State management for agent-based reservation system"""
     
-    # Extracted information
-    destination: Optional[str]
-    property_preferences: List[str]
-    selected_property: Optional[Dict[str, Any]]
-    check_in: Optional[str]
-    check_out: Optional[str]
-    adults: int
-    children: int
-    rooms: int
-    intent: str
+    def __init__(self):
+        self.destination: Optional[str] = None
+        self.property_preferences: List[str] = []
+        self.selected_property: Optional[Dict[str, Any]] = None
+        self.check_in: Optional[str] = None
+        self.check_out: Optional[str] = None
+        self.adults: int = 1
+        self.children: int = 0
+        self.rooms: int = 1
+        self.available_properties: List[Dict[str, Any]] = []
+        self.reservation_url: Optional[str] = None
+        self.chat_history: List[Dict[str, str]] = []
+        self.intent: str = "search"
     
-    # Available properties
-    available_properties: List[Dict[str, Any]]
-    
-    # Response generation
-    response_text: str
-    show_form: bool
-    prefilled_data: Dict[str, Any]
-    reservation_url: Optional[str]
-    
-    # Workflow control
-    next_step: str
-    conversation_complete: bool
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert state to dictionary"""
+        return {
+            'destination': self.destination,
+            'property_preferences': self.property_preferences,
+            'selected_property': self.selected_property,
+            'check_in': self.check_in,
+            'check_out': self.check_out,
+            'adults': self.adults,
+            'children': self.children,
+            'rooms': self.rooms,
+            'available_properties': self.available_properties,
+            'reservation_url': self.reservation_url,
+            'intent': self.intent
+        }
 
 
 class ReservationWorkflow:
-    """LangGraph workflow for hotel reservation"""
+    """LLM-driven agent for hotel reservation using ReAct pattern"""
     
     def __init__(self, hotels_data_path: str = "hotels_data.json"):
         # Load hotel data
         with open(hotels_data_path, 'r') as f:
             self.hotels_data = json.load(f)
         
-        # Initialize MCP tools
-        self.tools = MCPToolRegistry(self.hotels_data)
-        
-        # Initialize LLM
+        # Initialize LLM first
         try:
             self.llm = get_llm()
             self.llm_type = "azure"
@@ -72,504 +71,433 @@ class ReservationWorkflow:
                 self.llm_type = "gemini"
             except Exception as e2:
                 print(f"Gemini also not available: {e2}")
-                self.llm = None
-                self.llm_type = None
+                raise Exception("No LLM available. Please configure Azure OpenAI or Gemini.")
         
-        # Create workflow graph
-        self.workflow = self._create_workflow()
+        # Initialize MCP tools (pass LLM to tools so they can use it)
+        self.tools = MCPToolRegistry(self.hotels_data, self.llm)
         
-        # Memory for conversation persistence
-        self.memory = MemorySaver()
+        # Session storage for states
+        self.sessions: Dict[str, ReservationState] = {}
         
-        # Compile the graph
-        self.app = self.workflow.compile(checkpointer=self.memory)
-    
-    def _create_workflow(self) -> StateGraph:
-        """Create the LangGraph workflow"""
-        workflow = StateGraph(ReservationState)
+        # Current session context (set during process_query)
+        self.current_session_id: Optional[str] = None
         
-        # Add nodes
-        workflow.add_node("extract_info", self._extract_info_node)
-        workflow.add_node("find_properties", self._find_properties_node)
-        workflow.add_node("generate_response", self._generate_response_node)
-        workflow.add_node("complete_booking", self._complete_booking_node)
+        # Create LangChain tools for agent
+        self.agent_tools = self._create_agent_tools()
         
-        # Define the flow
-        workflow.set_entry_point("extract_info")
+        # Create agent prompt
+        self.agent_prompt = self._create_agent_prompt()
         
-        # Add conditional edges
-        workflow.add_conditional_edges(
-            "extract_info",
-            self._route_after_extraction,
-            {
-                "find_properties": "find_properties",
-                "generate_response": "generate_response",
-                "complete_booking": "complete_booking"
-            }
+        # Create the ReAct agent (LLM + tools + prompt)
+        self.agent = create_react_agent(
+            llm=self.llm,
+            tools=self.agent_tools,
+            prompt=self.agent_prompt
         )
         
-        workflow.add_conditional_edges(
-            "find_properties",
-            self._route_after_properties,
-            {
-                "generate_response": "generate_response",
-                "complete_booking": "complete_booking"
-            }
+        # Create executor
+        self.agent_executor = AgentExecutor(
+            agent=self.agent,
+            tools=self.agent_tools,
+            verbose=True,  # See LLM's reasoning
+            max_iterations=10,
+            handle_parsing_errors=True
+        )
+    
+    def _get_session_state(self, session_id: str) -> ReservationState:
+        """Get or create session state"""
+        if session_id not in self.sessions:
+            self.sessions[session_id] = ReservationState()
+        return self.sessions[session_id]
+    
+    def _create_agent_tools(self) -> List[Tool]:
+        """Create simplified, focused tools for the agent"""
+        
+        # Main universal booking query processor
+        def process_booking_query_func(user_query: str) -> str:
+            """
+            Universal tool for processing ANY booking-related conversation.
+            Intelligently extracts destination, dates, guests, preferences, and hotel selections.
+            Use this for all conversational booking queries.
+            """
+            try:
+                # Get current session ID from context
+                session_id = self.current_session_id
+                if not session_id:
+                    return "Error: No active session"
+                
+                state = self._get_session_state(session_id)
+                
+                # Convert state object to dict for the tool
+                state_dict = state.to_dict()
+                
+                result = self.tools.universal_booking.process_booking_query(user_query, state_dict)
+                
+                # Update session state object with extracted info
+                for key, value in result['updated_state'].items():
+                    if hasattr(state, key):
+                        setattr(state, key, value)
+                
+                # Debug: Print updated state
+                print(f"[DEBUG] State after update: destination={state.destination}, hotel={state.selected_property['name'] if state.selected_property else None}, dates={state.check_in} to {state.check_out}")
+                
+                return result['response']
+            except Exception as e:
+                return f"Error processing query: {str(e)}"
+        
+        process_booking_tool = Tool(
+            name="process_booking_query",
+            func=process_booking_query_func,
+            description="""PRIMARY TOOL - Use for ALL booking-related conversations. Handles: greetings, destination queries, date mentions, guest counts, preferences, hotel selections. Intelligently extracts and tracks all booking information."""
         )
         
-        workflow.add_conditional_edges(
-            "generate_response",
-            self._route_after_response,
-            {
-                "complete_booking": "complete_booking",
-                "end": END
-            }
+        # Get current session state
+        def get_state_func(dummy_input: str = "") -> str:
+            """Check what booking info has been collected so far"""
+            try:
+                session_id = self.current_session_id
+                if not session_id:
+                    return "Error: No active session"
+                    
+                state = self._get_session_state(session_id)
+                return json.dumps({
+                    'destination': state.destination,
+                    'selected_hotel': state.selected_property,
+                    'check_in': state.check_in,
+                    'check_out': state.check_out,
+                    'adults': state.adults,
+                    'children': state.children,
+                    'rooms': state.rooms,
+                    'preferences': state.property_preferences
+                })
+            except Exception as e:
+                return f"Error: {str(e)}"
+        
+        get_state_tool = Tool(
+            name="check_booking_status",
+            func=get_state_func,
+            description="""Check current booking progress. Use at start of conversation to see what info has been collected."""
         )
         
-        workflow.add_edge("complete_booking", END)
+        # Recommend hotels
+        def recommend_hotels_func(dummy_input: str = "") -> str:
+            """Find and recommend hotels based on collected preferences"""
+            try:
+                session_id = self.current_session_id
+                if not session_id:
+                    return "Error: No active session"
+                    
+                state = self._get_session_state(session_id)
+                
+                if not state.destination:
+                    return "Please specify a destination first (Sri Lanka or Maldives)"
+                
+                hotels = self.tools.hotel_recommendation.recommend_hotels(
+                    destination=state.destination,
+                    preferences=state.property_preferences,
+                    query=""
+                )
+                
+                if not hotels:
+                    return f"No hotels found for {state.destination}"
+                
+                # Format recommendations
+                response = f"I found {len(hotels)} perfect options in {state.destination}:\n\n"
+                for i, hotel in enumerate(hotels, 1):
+                    response += f"{i}. **{hotel['name']}** - {hotel.get('location', '')}\n"
+                    response += f"   {hotel.get('description', '')}\n\n"
+                
+                # Store for selection
+                state.available_properties = hotels
+                
+                response += "Which one interests you? Just tell me the number or name!"
+                return response
+            except Exception as e:
+                return f"Error: {str(e)}"
         
-        return workflow
-    
-    def _extract_info_node(self, state: ReservationState) -> ReservationState:
-        """Extract information from user query using MCP tools"""
-        query = state["user_query"]
-        
-        # Use MCP tools to extract information
-        destination = self.tools.destination_extraction.extract_destination(query)
-        preferences = self.tools.preference_extraction.extract_preferences(query)
-        dates = self.tools.date_extraction.extract_dates(query)
-        guests = self.tools.guest_extraction.extract_guests(query)
-        intent = self.tools.intent_classification.classify_intent(query)
-        
-        # Update state with extracted information (only if not already set)
-        updates = {}
-        if destination and not state.get("destination"):
-            updates["destination"] = destination
-        
-        # For preferences, append to existing rather than replace (unless empty)
-        current_preferences = state.get("property_preferences", [])
-        if preferences:
-            # Combine unique preferences
-            combined_preferences = list(set(current_preferences + preferences))
-            updates["property_preferences"] = combined_preferences
-        
-        if dates["check_in"] and not state.get("check_in"):
-            updates["check_in"] = dates["check_in"]
-        
-        if dates["check_out"] and not state.get("check_out"):
-            updates["check_out"] = dates["check_out"]
-        
-        if guests["adults"] > 1 and state.get("adults", 1) == 1:
-            updates["adults"] = guests["adults"]
-        
-        if guests["children"] > 0 and state.get("children", 0) == 0:
-            updates["children"] = guests["children"]
-        
-        if guests["rooms"] > 1 and state.get("rooms", 1) == 1:
-            updates["rooms"] = guests["rooms"]
-        
-        updates["intent"] = intent
-        
-        # Handle property selection by name (check current state's destination first)
-        current_destination = state.get("destination") or destination
-        if current_destination and not state.get("selected_property"):
-            # Check if user mentioned a specific property name
-            query_lower = query.lower()
-            
-            # More specific property name matching
-            if "cinnamon grand" in query_lower or "grand colombo" in query_lower:
-                property = self.tools.hotel_search.find_property_by_name("Cinnamon Grand Colombo", current_destination)
-                if property:
-                    updates["selected_property"] = property
-            elif "cinnamon lakeside" in query_lower or "lakeside colombo" in query_lower:
-                property = self.tools.hotel_search.find_property_by_name("Cinnamon Lakeside Colombo", current_destination)
-                if property:
-                    updates["selected_property"] = property
-            elif "cinnamon lodge" in query_lower or "lodge habarana" in query_lower:
-                property = self.tools.hotel_search.find_property_by_name("Cinnamon Lodge Habarana", current_destination)
-                if property:
-                    updates["selected_property"] = property
-            elif "cinnamon bey" in query_lower or "bey beruwala" in query_lower:
-                property = self.tools.hotel_search.find_property_by_name("Cinnamon Bey Beruwala", current_destination)
-                if property:
-                    updates["selected_property"] = property
-            elif "cinnamon citadel" in query_lower or "citadel kandy" in query_lower:
-                property = self.tools.hotel_search.find_property_by_name("Cinnamon Citadel Kandy", current_destination)
-                if property:
-                    updates["selected_property"] = property
-        
-        return {**state, **updates}
-    
-    def _find_properties_node(self, state: ReservationState) -> ReservationState:
-        """Find matching properties using MCP tools"""
-        destination = state.get("destination")
-        preferences = state.get("property_preferences", [])
-        
-        if not destination:
-            return state
-        
-        # Search for properties
-        properties = self.tools.hotel_search.search_hotels(destination, preferences)
-        
-        # If we have only one property and no selection yet, auto-select it
-        if len(properties) == 1 and not state.get("selected_property"):
-            return {
-                **state,
-                "available_properties": properties,
-                "selected_property": properties[0]
-            }
-        
-        return {
-            **state,
-            "available_properties": properties
-        }
-    
-    def _generate_response_node(self, state: ReservationState) -> ReservationState:
-        """Generate conversational response using LLM or fallback logic"""
-        # Determine if we should show the booking form
-        show_form = (
-            state.get("selected_property") is not None and
-            state.get("check_in") is not None and
-            state.get("check_out") is not None
+        recommend_tool = Tool(
+            name="recommend_hotels",
+            func=recommend_hotels_func,
+            description="""Show hotel recommendations after destination and preferences are known."""
         )
         
-        prefilled_data = {}
-        if show_form:
-            property = state.get("selected_property")
-            prefilled_data = {
-                'checkIn': state.get("check_in"),
-                'checkOut': state.get("check_out"),
-                'adults': state.get("adults", 1),
-                'children': state.get("children", 0),
-                'rooms': state.get("rooms", 1),
-                'propertyName': property.get('name') if property else '',
-                'destination': state.get("destination", '')
-            }
+        # Select a specific hotel
+        def select_hotel_func(hotel_name: str) -> str:
+            """Select a specific hotel by name"""
+            try:
+                session_id = self.current_session_id
+                if not session_id:
+                    return "Error: No active session"
+                    
+                state = self._get_session_state(session_id)
+                
+                # Find hotel in available properties or search all hotels
+                selected = None
+                
+                # First check available properties
+                for hotel in state.available_properties:
+                    if hotel_name.lower() in hotel['name'].lower():
+                        selected = hotel
+                        break
+                
+                # If not found, search all hotels for destination
+                if not selected and state.destination:
+                    for dest in self.hotels_data.get('destinations', []):
+                        if dest['name'] == state.destination:
+                            for hotel in dest.get('properties', []):
+                                if hotel_name.lower() in hotel['name'].lower():
+                                    selected = hotel
+                                    break
+                
+                if selected:
+                    state.selected_property = selected
+                    return f"Perfect! I've selected **{selected['name']}** for you. Now I need dates and guest count to proceed."
+                else:
+                    return f"I couldn't find '{hotel_name}'. Please try again or ask for recommendations."
+                    
+            except Exception as e:
+                return f"Error: {str(e)}"
         
-        if self.llm:
-            response_text = self._generate_llm_response(state)
-        else:
-            response_text = self._generate_fallback_response(state)
-        
-        if show_form:
-            response_text += f"\n\nPerfect! I have all the details for your booking. Please review the information below and confirm your reservation."
-        
-        return {
-            **state,
-            "response_text": response_text,
-            "show_form": show_form,
-            "prefilled_data": prefilled_data
-        }
-    
-    def _complete_booking_node(self, state: ReservationState) -> ReservationState:
-        """Complete the booking and generate reservation URL"""
-        selected_property = state.get("selected_property")
-        
-        if not selected_property:
-            return {
-                **state,
-                "response_text": "Error: No property selected for booking.",
-                "conversation_complete": True
-            }
-        
-        # Generate reservation URL using MCP tool
-        reservation_data = {
-            'check_in': state.get("check_in"),
-            'check_out': state.get("check_out"),
-            'adults': state.get("adults", 1),
-            'children': state.get("children", 0),
-            'rooms': state.get("rooms", 1)
-        }
-        
-        reservation_url = self.tools.reservation_url.generate_reservation_url(
-            selected_property, reservation_data
+        select_hotel_tool = Tool(
+            name="select_hotel",
+            func=select_hotel_func,
+            description="""Select a specific hotel by name when user confirms their choice. Input: hotel_name"""
         )
         
-        return {
-            **state,
-            "reservation_url": reservation_url,
-            "conversation_complete": True,
-            "response_text": f"Great! Your reservation for {selected_property['name']} is ready. Click the link to complete your booking."
-        }
+        # Generate booking URL
+        def generate_url_func(dummy_input: str = "") -> str:
+            """Generate final booking URL when all details are ready"""
+            try:
+                session_id = self.current_session_id
+                if not session_id:
+                    return "Error: No active session"
+                    
+                state = self._get_session_state(session_id)
+                
+                if not state.selected_property:
+                    return "ERROR: No hotel selected"
+                if not state.check_in or not state.check_out:
+                    return "ERROR: Missing dates"
+                
+                booking_data = {
+                    'check_in': state.check_in,
+                    'check_out': state.check_out,
+                    'adults': state.adults,
+                    'children': state.children,
+                    'rooms': state.rooms
+                }
+                
+                url = self.tools.reservation_url.generate_reservation_url(
+                    state.selected_property, booking_data
+                )
+                state.reservation_url = url
+                return url
+            except Exception as e:
+                return f"Error: {str(e)}"
+        
+        generate_url_tool = Tool(
+            name="generate_booking_url",
+            func=generate_url_func,
+            description="""Generate final booking URL when hotel, dates, and guests are all confirmed."""
+        )
+        
+        return [
+            process_booking_tool,
+            get_state_tool,
+            recommend_tool,
+            select_hotel_tool,
+            generate_url_tool
+        ]
     
-    def _route_after_extraction(self, state: ReservationState) -> str:
-        """Route after information extraction"""
-        intent = state.get("intent", "search")
-        selected_property = state.get("selected_property")
-        check_in = state.get("check_in")
-        check_out = state.get("check_out")
-        destination = state.get("destination")
+    def _create_agent_prompt(self) -> PromptTemplate:
+        """Create the agent's system prompt with ReAct pattern instructions"""
+        template = """You are a friendly hotel reservation assistant for Cinnamon Hotels.
+Your goal: Help customers find and book the perfect hotel in Sri Lanka or the Maldives.
+
+AVAILABLE TOOLS:
+{tools}
+
+CRITICAL RULES:
+1. **ALWAYS use 'process_booking_query' FIRST** for every user message. This tool:
+   - Extracts new information from user's query
+   - Updates and remembers ALL booking details (destination, dates, guests, preferences, hotel)
+   - Returns what's been collected AND what's still needed
+   - YOU MUST READ AND TRUST this tool's response!
+
+2. **READ THE TOOL RESPONSE CAREFULLY**:
+   - The tool tells you exactly what information has been collected
+   - The tool tells you what's missing
+   - Base your Final Answer ONLY on what the tool says
+   - DO NOT ask for information the tool says it already has!
+
+3. **When to use OTHER tools**:
+   - Use 'recommend_hotels' if tool says "Let me find properties" OR user asks to see options
+   - Use 'select_hotel' when user picks a specific hotel from recommendations
+   - Use 'check_booking_status' if you're unsure what info has been collected
+   - Use 'generate_booking_url' when ALL required info is collected (hotel, dates, guests)
+
+4. **REQUIRED FORMAT**:
+   Thought: [What should I do? What tool should I use?]
+   Action: [tool name from: {tool_names}]
+   Action Input: [the input for the tool]
+   Observation: [tool result - READ THIS CAREFULLY!]
+   ... (repeat if needed)
+   Thought: Based on the tool response, I should [tell user X / ask for Y / show Z]
+   Final Answer: [Your response based ONLY on tool observations]
+
+5. **DO NOT HALLUCINATE**:
+   - If tool says "I have destination and guests", DO NOT ask for them again!
+   - If tool says "I need dates", ONLY ask for dates
+   - Trust the tool's memory - it remembers across all messages in this session
+
+EXAMPLE:
+User: next weekend
+Thought: I should process this to extract dates
+Action: process_booking_query
+Action Input: next weekend
+Observation: Perfect! I've noted: dates: 2025-10-25 to 2025-10-27. I already have: destination=Sri Lanka, guests=1 adult, hotel=Cinnamon Bey. Ready to generate booking URL!
+Thought: The tool says all info is collected! I should generate the booking URL
+Action: generate_booking_url
+Action Input: 
+Observation: https://reservations.cinnamonhotels.com/...
+Thought: I have the booking URL to give the user
+Final Answer: Perfect! I have all your details. Here's your booking link: [URL]
+
+NOW BEGIN!
+Current session: {session_id}
+User Query: {input}
+
+{agent_scratchpad}"""
         
-        # If we have all the key information (property + dates), we can show the form
-        if selected_property and check_in and check_out:
-            return "generate_response"  # This will trigger form display
-        
-        # If we have confirmation intent and all required info
-        if intent == "confirm_booking" and selected_property:
-            return "complete_booking"
-        
-        # If we have destination but need to find properties
-        elif destination and not state.get("available_properties"):
-            return "find_properties"
-        
-        # Otherwise generate a response to continue the conversation
-        else:
-            return "generate_response"
+        return PromptTemplate(
+            template=template,
+            input_variables=["input", "agent_scratchpad", "session_id"],
+            partial_variables={
+                "tools": self._get_tools_description(),
+                "tool_names": self._get_tool_names()
+            }
+        )
     
-    def _route_after_properties(self, state: ReservationState) -> str:
-        """Route after finding properties"""
-        if (state.get("selected_property") and 
-            state.get("check_in") and 
-            state.get("check_out") and 
-            state.get("intent") == "confirm_booking"):
-            return "complete_booking"
-        else:
-            return "generate_response"
+    def _get_tools_description(self) -> str:
+        """Get formatted tools description"""
+        return "\n".join([f"- {tool.name}: {tool.description}" for tool in self.agent_tools])
     
-    def _route_after_response(self, state: ReservationState) -> str:
-        """Route after generating response"""
-        if state.get("show_form") and state.get("intent") == "confirm_booking":
-            return "complete_booking"
-        else:
-            return "end"
-    
-    def _generate_llm_response(self, state: ReservationState) -> str:
-        """Generate response using LLM"""
-        session_context = f"""
-Current session state:
-- Destination: {state.get('destination')}
-- Property preferences: {state.get('property_preferences')}
-- Selected property: {state.get('selected_property', {}).get('name') if state.get('selected_property') else None}
-- Check-in: {state.get('check_in')}
-- Check-out: {state.get('check_out')}
-- Adults: {state.get('adults', 1)}, Children: {state.get('children', 0)}, Rooms: {state.get('rooms', 1)}
-"""
-        
-        properties_context = ""
-        available_properties = state.get("available_properties", [])
-        if available_properties:
-            properties_context = "Available properties:\n"
-            for i, prop in enumerate(available_properties[:3], 1):
-                properties_context += f"{i}. {prop['name']} in {prop['location']} - {prop['description']}\n"
-        
-        prompt = f"""
-You are a friendly and helpful hotel reservation assistant for Cinnamon Hotels. 
-Your goal is to help customers find and book the perfect hotel.
-
-{session_context}
-
-{properties_context}
-
-User Query: "{state.get('user_query')}"
-User Intent: {state.get('intent')}
-
-Generate a natural, conversational response that:
-1. Acknowledges what the user has provided
-2. Guides them to the next step in the booking process
-3. Is warm, professional, and helpful
-4. Keeps the conversation flowing naturally
-5. If properties are available, present them in an engaging way
-6. If information is missing, ask for it in a friendly manner
-
-Guidelines:
-- Keep responses concise but informative
-- Use friendly, conversational tone
-- Don't repeat information already established
-- Focus on moving the conversation forward
-- If user has selected everything needed, prepare them for the booking form
-
-Respond as the assistant:
-"""
-        
-        try:
-            response = self.llm.invoke(prompt)
-            response_text = response.content if hasattr(response, 'content') else str(response)
-            return response_text.strip()
-        except Exception as e:
-            print(f"LLM response generation failed: {e}")
-            # return self._generate_fallback_response(state)
-    
-    # def _generate_fallback_response(self, state: ReservationState) -> str:
-    #     """Generate fallback response when LLM is not available"""
-    #     selected_property = state.get("selected_property")
-    #     check_in = state.get("check_in")
-    #     check_out = state.get("check_out")
-    #     destination = state.get("destination")
-        
-    #     # If we have everything needed for booking
-    #     if selected_property and check_in and check_out:
-    #         return (
-    #             f"Perfect! I have all your reservation details for **{selected_property['name']}** "
-    #             f"from {check_in} to {check_out} for {state.get('adults', 1)} adult(s)"
-    #             f"{' and ' + str(state.get('children', 0)) + ' child(ren)' if state.get('children', 0) > 0 else ''} "
-    #             f"in {state.get('rooms', 1)} room(s). "
-    #             f"This {selected_property.get('type', '')} property in {selected_property.get('location', '')} is {selected_property.get('description', '')}."
-    #         )
-        
-    #     # If property is selected but missing dates
-    #     elif selected_property and not (check_in and check_out):
-    #         return (
-    #             f"Great choice! **{selected_property['name']}** is a wonderful property. "
-    #             f"I have all your accommodation preferences ready. "
-    #             f"Could you please let me know your preferred check-in and check-out dates?"
-    #         )
-        
-    #     # If dates are provided but no property selected
-    #     elif check_in and check_out and not selected_property:
-    #         return (
-    #             f"Perfect! I have your dates from {check_in} to {check_out}. "
-    #             f"Now let me help you choose the perfect property for your stay."
-    #         )
-        
-    #     # Original fallback logic for other cases
-    #     elif not destination:
-    #         return (
-    #             "I'd love to help you find the perfect hotel! "
-    #             "Are you looking to stay in Sri Lanka or the Maldives? "
-    #             "Each destination offers unique experiences - Sri Lanka has rich culture and diverse landscapes, "
-    #             "while the Maldives offers pristine beaches and overwater villas."
-    #         )
-    #     elif not state.get("property_preferences") and not selected_property:
-    #         dest_name = destination
-    #         if dest_name == "Sri Lanka":
-    #             return (
-    #                 f"Great choice! {dest_name} has amazing properties. "
-    #                 "What type of experience are you looking for? We have:\n"
-    #                 "• Coastal/beachfront properties for ocean lovers\n"
-    #                 "• City hotels for urban experiences and business\n"
-    #                 "• Nature/eco-friendly resorts for wildlife enthusiasts\n"
-    #                 "• Hill country properties for scenic mountain views\n\n"
-    #                 "What sounds most appealing to you?"
-    #             )
-    #         else:
-    #             return (
-    #                 f"Excellent! The {dest_name} offers incredible luxury resorts. "
-    #                 "All our properties are coastal with stunning beaches. "
-    #                 "Are you looking for:\n"
-    #                 "• Romantic/honeymoon experiences\n"
-    #                 "• Family-friendly resorts\n"
-    #                 "• Diving and water sports activities\n"
-    #                 "• Adults-only peaceful retreats\n\n"
-    #                 "What type of experience interests you most?"
-    #             )
-    #     elif not selected_property:
-    #         properties = state.get("available_properties", [])
-    #         if properties:
-    #             if len(properties) == 1:
-    #                 return f"Perfect! I found the ideal property for you: **{properties[0]['name']}** in {properties[0]['location']}. {properties[0]['description']}"
-    #             else:
-    #                 property_list = ""
-    #                 for i, prop in enumerate(properties[:3], 1):
-    #                     property_list += f"{i}. **{prop['name']}** - {prop['location']}\n   {prop['description']}\n\n"
-    #                 return f"I found several great options for you:\n\n{property_list}Which property interests you most?"
-    #         else:
-    #             return "Let me search for available properties for you."
-    #     else:
-    #         return "Thank you for the information. Let me help you with your reservation."
+    def _get_tool_names(self) -> str:
+        """Get comma-separated tool names"""
+        return ", ".join([tool.name for tool in self.agent_tools])
     
     def process_query(self, session_id: str, query: str) -> Dict[str, Any]:
-        """Process a user query through the LangGraph workflow"""
-        config = {"configurable": {"thread_id": session_id}}
+        """Process a user query using the LLM agent"""
+        print(f"\n\n{'#'*80}")
+        print(f"# NEW QUERY PROCESSING (AGENT-BASED)")
+        print(f"# Session ID: {session_id}")
+        print(f"# Query: '{query}'")
+        print(f"{'#'*80}\n")
         
-        # Get existing state or create initial state
+        # Set current session context for tools to access
+        self.current_session_id = session_id
+        
+        # Get or create session state
+        state = self._get_session_state(session_id)
+        
+        # Invoke the agent
         try:
-            current_state = self.app.get_state(config)
-            if current_state and current_state.values:
-                # Merge with existing state, updating only the new query
-                state = {
-                    **current_state.values,
-                    "user_query": query,
-                    "messages": current_state.values.get("messages", []) + [{"role": "user", "content": query}]
-                }
-            else:
-                # Create fresh initial state
-                state = {
-                    "messages": [{"role": "user", "content": query}],
-                    "user_query": query,
-                    "session_id": session_id,
-                    "destination": None,
-                    "property_preferences": [],
-                    "selected_property": None,
-                    "check_in": None,
-                    "check_out": None,
-                    "adults": 1,
-                    "children": 0,
-                    "rooms": 1,
-                    "intent": "search",
-                    "available_properties": [],
-                    "response_text": "",
-                    "show_form": False,
-                    "prefilled_data": {},
-                    "reservation_url": None,
-                    "next_step": "",
-                    "conversation_complete": False
-                }
+            result = self.agent_executor.invoke({
+                "input": query,
+                "session_id": session_id
+            })
+            
+            response_text = result.get('output', '')
+            
+            print(f"\nDEBUG: [AGENT] Agent execution completed")
+            print(f"DEBUG: [AGENT] Response: {response_text[:200]}...")
+            
         except Exception as e:
-            print(f"Error getting state: {e}")
-            # Fallback to fresh state
-            state = {
-                "messages": [{"role": "user", "content": query}],
-                "user_query": query,
-                "session_id": session_id,
-                "destination": None,
-                "property_preferences": [],
-                "selected_property": None,
-                "check_in": None,
-                "check_out": None,
-                "adults": 1,
-                "children": 0,
-                "rooms": 1,
-                "intent": "search",
-                "available_properties": [],
-                "response_text": "",
-                "show_form": False,
-                "prefilled_data": {},
-                "reservation_url": None,
-                "next_step": "",
-                "conversation_complete": False
+            print(f"ERROR: Agent execution failed: {e}")
+            import traceback
+            traceback.print_exc()
+            response_text = "I apologize, but I encountered an error. Could you please rephrase your request?"
+        
+        # Update chat history
+        state.chat_history.append({'role': 'user', 'content': query})
+        state.chat_history.append({'role': 'assistant', 'content': response_text})
+        
+        # Determine if we should show the booking form
+        show_form = (
+            state.selected_property is not None and
+            state.check_in is not None and
+            state.check_out is not None
+        )
+        
+        # Prepare prefilled data for the form
+        prefilled_data = {}
+        if show_form:
+            prefilled_data = {
+                'checkIn': state.check_in or '',
+                'checkOut': state.check_out or '',
+                'adults': state.adults,
+                'children': state.children,
+                'rooms': state.rooms,
+                'propertyName': state.selected_property.get('name', ''),
+                'destination': state.destination or ''
             }
         
-        # Run the workflow
-        result = self.app.invoke(state, config)
+        print(f"\nDEBUG: [PROCESS_QUERY] Completed")
+        print(f"DEBUG: [PROCESS_QUERY] Show form: {show_form}")
+        print(f"DEBUG: [PROCESS_QUERY] Selected property: {state.selected_property.get('name') if state.selected_property else None}")
+        print(f"{'#'*80}\n\n")
         
-        # Return the response in the expected format
         return {
-            'response': result.get("response_text", ""),
-            'show_form': result.get("show_form", False),
-            'prefilled_data': result.get("prefilled_data", {}),
-            'reservation_url': result.get("reservation_url"),
-            'session_state': result
+            'response': response_text,
+            'show_form': show_form,
+            'prefilled_data': prefilled_data,
+            'reservation_url': state.reservation_url,
+            'session_state': state.to_dict()
         }
     
     def complete_reservation(self, session_id: str, reservation_data: Dict) -> Dict[str, Any]:
-        """Complete a reservation with final details"""
-        # Get current state
-        config = {"configurable": {"thread_id": session_id}}
-        current_state = self.app.get_state(config)
+        """Complete a reservation with final details from the booking form"""
+        print(f"\n{'#'*80}")
+        print(f"# COMPLETING RESERVATION")
+        print(f"# Session ID: {session_id}")
+        print(f"{'#'*80}\n")
         
-        if not current_state or not current_state.values.get("selected_property"):
+        # Get session state
+        state = self._get_session_state(session_id)
+        
+        if not state.selected_property:
             return {
                 'error': 'No property selected',
                 'reservation_url': None
             }
         
         # Update state with final reservation data
-        updated_state = {
-            **current_state.values,
-            "check_in": reservation_data.get('checkIn'),
-            "check_out": reservation_data.get('checkOut'),
-            "adults": reservation_data.get('adults', 1),
-            "children": reservation_data.get('children', 0),
-            "rooms": reservation_data.get('rooms', 1),
-            "intent": "confirm_booking",
-            "user_query": "confirm booking"
+        state.check_in = reservation_data.get('checkIn')
+        state.check_out = reservation_data.get('checkOut')
+        state.adults = reservation_data.get('adults', 1)
+        state.children = reservation_data.get('children', 0)
+        state.rooms = reservation_data.get('rooms', 1)
+        state.intent = "confirm_booking"
+        
+        # Generate reservation URL
+        url_reservation_data = {
+            'check_in': state.check_in,
+            'check_out': state.check_out,
+            'adults': state.adults,
+            'children': state.children,
+            'rooms': state.rooms
         }
         
-        # Run the completion workflow
-        result = self.app.invoke(updated_state, config)
+        reservation_url = self.tools.reservation_url.generate_reservation_url(
+            state.selected_property, url_reservation_data
+        )
+        state.reservation_url = reservation_url
+        
+        print(f"DEBUG: [COMPLETE_RESERVATION] URL generated: {reservation_url}")
+        print(f"{'#'*80}\n\n")
         
         return {
-            'reservation_url': result.get("reservation_url"),
-            'property': result.get("selected_property"),
-            'session_state': result
+            'reservation_url': reservation_url,
+            'property': state.selected_property,
+            'session_state': state.to_dict()
         }

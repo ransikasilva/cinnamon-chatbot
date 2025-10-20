@@ -1,332 +1,498 @@
 """
-MCP-compatible tools for hotel reservation system
+Refactored MCP-compatible tools for hotel reservation system
+Clean, focused tools with fallback logic and better error handling
 """
 import json
 import re
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any
 from urllib.parse import urlencode
 
 
-class HotelSearchTool:
-    """MCP tool for searching hotels"""
+class UniversalBookingTool:
+    """
+    Universal conversational booking tool that intelligently extracts ALL booking information
+    from natural language queries and manages the booking flow
+    """
     
-    def __init__(self, hotels_data: Dict[str, Any]):
+    def __init__(self, hotels_data: Dict[str, Any], llm=None):
         self.hotels_data = hotels_data
+        self.llm = llm
     
-    def search_hotels(self, destination: str, preferences: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    def process_booking_query(self, user_query: str, session_state: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Search for hotels by destination and preferences
+        Intelligently process ANY booking-related query and extract all available information.
         
         Args:
-            destination: "Sri Lanka" or "Maldives"
-            preferences: List of preferences like ["coastal", "romantic", "family"]
+            user_query: User's natural language input
+            session_state: Current session state (destination, dates, guests, etc.)
             
         Returns:
-            List of matching hotel properties
+            Dict with: extracted_info, updated_state, response_message, next_action
         """
-        dest_data = None
-        for dest in self.hotels_data['destinations']:
-            if dest['name'] == destination:
-                dest_data = dest
-                break
+        extracted_info = {}
         
-        if not dest_data:
-            return []
+        # 1. Extract destination
+        destination = self._extract_destination(user_query)
+        if destination:
+            extracted_info['destination'] = destination
+            session_state['destination'] = destination
         
-        if not preferences:
-            return dest_data['properties']
+        # 2. Extract dates
+        dates = self._extract_dates(user_query)
+        if dates.get('check_in'):
+            extracted_info['check_in'] = dates['check_in']
+            extracted_info['check_out'] = dates['check_out']
+            session_state['check_in'] = dates['check_in']
+            session_state['check_out'] = dates['check_out']
         
-        # Score properties based on preference match
-        scored_properties = []
-        for prop in dest_data['properties']:
-            score = 0
-            for pref in preferences:
-                if pref in prop.get('preferences', []):
-                    score += 1
-            scored_properties.append((score, prop))
+        # 3. Extract guest count
+        guests = self._extract_guests(user_query)
+        if guests.get('adults') is not None:
+            extracted_info['adults'] = guests['adults']
+            extracted_info['children'] = guests.get('children', 0)
+            extracted_info['rooms'] = guests.get('rooms', 1)
+            session_state['adults'] = guests['adults']
+            session_state['children'] = guests.get('children', 0)
+            session_state['rooms'] = guests.get('rooms', 1)
         
-        # Sort by score and return properties
-        scored_properties.sort(key=lambda x: x[0], reverse=True)
-        return [prop for score, prop in scored_properties]
+        # 4. Extract preferences
+        preferences = self._extract_preferences(user_query)
+        if preferences:
+            extracted_info['preferences'] = preferences
+            current_prefs = session_state.get('property_preferences', [])
+            if not isinstance(current_prefs, list):
+                current_prefs = []
+            session_state['property_preferences'] = list(set(current_prefs + preferences))
+        
+        # 5. Check for specific hotel mention
+        hotel = self._extract_hotel_name(user_query, session_state.get('destination'))
+        if hotel:
+            extracted_info['hotel'] = hotel['name']
+            session_state['selected_property'] = hotel
+        
+        # Determine next step
+        next_action = self._determine_next_action(session_state, extracted_info)
+        response = self._build_response(session_state, extracted_info, next_action)
+        
+        return {
+            'extracted_info': extracted_info,
+            'updated_state': session_state,
+            'response': response,
+            'next_action': next_action
+        }
     
-    def find_property_by_name(self, property_name: str, destination: str) -> Optional[Dict[str, Any]]:
-        """
-        Find a specific property by name
+    def _extract_destination(self, query: str) -> Optional[str]:
+        """Extract destination with fallback to keyword matching"""
+        if self.llm:
+            try:
+                return self._extract_destination_llm(query)
+            except Exception as e:
+                print(f"LLM extraction failed, using fallback: {e}")
         
-        Args:
-            property_name: Name of the property to find
-            destination: Destination to search in
-            
-        Returns:
-            Property data if found, None otherwise
-        """
-        properties = self.search_hotels(destination)
-        property_name_lower = property_name.lower()
-        
-        for prop in properties:
-            if property_name_lower in prop['name'].lower():
-                return prop
-        
-        return None
-
-
-class DateExtractionTool:
-    """MCP tool for extracting and parsing dates"""
-    
-    @staticmethod
-    def extract_dates(query: str) -> Dict[str, Optional[str]]:
-        """
-        Extract check-in and check-out dates from natural language
-        
-        Args:
-            query: User query containing date information
-            
-        Returns:
-            Dictionary with check_in and check_out dates in YYYY-MM-DD format
-        """
+        # Fallback: Simple keyword matching
         query_lower = query.lower()
-        today = datetime.now()
+        if any(word in query_lower for word in ['sri lanka', 'colombo', 'kandy', 'galle', 'ceylon']):
+            return "Sri Lanka"
+        elif any(word in query_lower for word in ['maldives', 'male', 'atoll']):
+            return "Maldives"
+        return None
+    
+    def _extract_destination_llm(self, query: str) -> Optional[str]:
+        """LLM-based destination extraction"""
+        prompt = f"""Extract the destination from: "{query}"
         
-        # Check for "next weekend"
-        if 'next weekend' in query_lower:
-            days_ahead = 7 - today.weekday() + 4  # Next Friday
-            check_in = today + timedelta(days=days_ahead)
-            check_out = check_in + timedelta(days=2)  # Sunday
-            return {
-                'check_in': check_in.strftime('%Y-%m-%d'),
-                'check_out': check_out.strftime('%Y-%m-%d')
-            }
+Available: Sri Lanka, Maldives
+Respond with ONLY the destination name or "None"."""
+
+        response = self.llm.invoke(prompt)
+        result = (response.content if hasattr(response, 'content') else str(response)).strip()
         
-        # Check for "this weekend"
-        elif 'this weekend' in query_lower or 'weekend' in query_lower:
-            days_ahead = (4 - today.weekday()) % 7  # This Friday
-            check_in = today + timedelta(days=days_ahead)
-            check_out = check_in + timedelta(days=2)  # Sunday
-            return {
-                'check_in': check_in.strftime('%Y-%m-%d'),
-                'check_out': check_out.strftime('%Y-%m-%d')
-            }
+        if result in ['Sri Lanka', 'Maldives']:
+            return result
+        return None
+    
+    def _extract_dates(self, query: str) -> Dict[str, Optional[str]]:
+        """Extract dates with fallback to regex patterns"""
+        if self.llm:
+            try:
+                return self._extract_dates_llm(query)
+            except Exception as e:
+                print(f"LLM date extraction failed, using fallback: {e}")
         
-        # Check for "tomorrow"
-        elif 'tomorrow' in query_lower:
-            check_in = today + timedelta(days=1)
-            check_out = check_in + timedelta(days=1)  # Next day
-            return {
-                'check_in': check_in.strftime('%Y-%m-%d'),
-                'check_out': check_out.strftime('%Y-%m-%d')
-            }
+        # Fallback: Simple date pattern matching
+        result = {'check_in': None, 'check_out': None}
         
-        # Try to extract specific dates (simple patterns)
-        date_patterns = [
-            r'(\d{4}-\d{2}-\d{2})',  # YYYY-MM-DD
-            r'(\d{1,2}/\d{1,2}/\d{4})',  # MM/DD/YYYY
-        ]
-        
-        dates_found = []
-        for pattern in date_patterns:
-            matches = re.findall(pattern, query)
-            dates_found.extend(matches)
+        # Look for date patterns (YYYY-MM-DD, MM/DD/YYYY, etc.)
+        date_pattern = r'\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}'
+        dates_found = re.findall(date_pattern, query)
         
         if len(dates_found) >= 2:
-            return {
-                'check_in': dates_found[0],
-                'check_out': dates_found[1]
-            }
+            result['check_in'] = dates_found[0]
+            result['check_out'] = dates_found[1]
         elif len(dates_found) == 1:
-            return {
-                'check_in': dates_found[0],
-                'check_out': None
-            }
+            result['check_in'] = dates_found[0]
+            # Default to 2 nights
+            try:
+                check_in = datetime.strptime(dates_found[0], '%Y-%m-%d')
+                check_out = check_in + timedelta(days=2)
+                result['check_out'] = check_out.strftime('%Y-%m-%d')
+            except:
+                pass
         
-        return {'check_in': None, 'check_out': None}
-
-
-class GuestExtractionTool:
-    """MCP tool for extracting guest information"""
+        return result
     
-    @staticmethod
-    def extract_guests(query: str) -> Dict[str, int]:
-        """
-        Extract guest information from natural language
+    def _extract_dates_llm(self, query: str) -> Dict[str, Optional[str]]:
+        """LLM-based date extraction"""
+        today = datetime.now()
+        prompt = f"""Today is {today.strftime('%Y-%m-%d')} (%A).
+
+Extract check-in and check-out dates from: "{query}"
+
+Rules:
+- Return dates in YYYY-MM-DD format
+- For relative dates like "next weekend", "tomorrow", calculate from today
+- If only one date mentioned, assume 2-night stay
+- If no dates, return null
+
+Respond with ONLY JSON: {{"check_in": "YYYY-MM-DD or null", "check_out": "YYYY-MM-DD or null"}}"""
+
+        response = self.llm.invoke(prompt)
+        result_text = response.content if hasattr(response, 'content') else str(response)
         
-        Args:
-            query: User query containing guest information
-            
-        Returns:
-            Dictionary with adults, children, and rooms counts
-        """
+        try:
+            return json.loads(result_text.strip())
+        except:
+            return {'check_in': None, 'check_out': None}
+    
+    def _extract_guests(self, query: str) -> Dict[str, Optional[int]]:
+        """Extract guest counts with fallback to keyword matching"""
+        if self.llm:
+            try:
+                return self._extract_guests_llm(query)
+            except Exception as e:
+                print(f"LLM guest extraction failed, using fallback: {e}")
+        
+        # Fallback: Pattern matching
         query_lower = query.lower()
-        result = {'adults': 1, 'children': 0, 'rooms': 1}
+        result = {'adults': None, 'children': 0, 'rooms': 1}
         
-        # Extract adult information
-        adult_match = re.search(r'\b(\d+)\s*(adults?|people|persons?|guests?)\b', query_lower)
+        # Look for numbers followed by adult/adults/people/guests
+        adult_pattern = r'(\d+)\s*(?:adult|people|guest|person)'
+        adult_match = re.search(adult_pattern, query_lower)
         if adult_match:
             result['adults'] = int(adult_match.group(1))
         
-        # Extract children information
-        children_match = re.search(r'\b(\d+)\s*(child|children|kids?)\b', query_lower)
-        if children_match:
-            result['children'] = int(children_match.group(1))
+        # Look for solo/couple/family keywords
+        if 'solo' in query_lower or 'alone' in query_lower:
+            result['adults'] = 1
+        elif 'couple' in query_lower:
+            result['adults'] = 2
         elif 'family' in query_lower:
-            # Infer children presence for family bookings
-            result['children'] = 2  # Default assumption
+            result['adults'] = 2
+            result['children'] = 2
         
-        # Extract room information
-        rooms_match = re.search(r'\b(\d+)\s*(rooms?|suites?)\b', query_lower)
-        if rooms_match:
-            result['rooms'] = int(rooms_match.group(1))
+        # Look for children
+        children_pattern = r'(\d+)\s*(?:child|children|kid)'
+        child_match = re.search(children_pattern, query_lower)
+        if child_match:
+            result['children'] = int(child_match.group(1))
+        
+        # Look for rooms
+        rooms_pattern = r'(\d+)\s*(?:room|rooms)'
+        room_match = re.search(rooms_pattern, query_lower)
+        if room_match:
+            result['rooms'] = int(room_match.group(1))
         
         return result
-
-
-class PreferenceExtractionTool:
-    """MCP tool for extracting hotel preferences"""
     
-    def __init__(self, hotels_data: Dict[str, Any]):
-        self.preference_mapping = hotels_data.get('preference_mapping', {})
-    
-    def extract_preferences(self, query: str) -> List[str]:
-        """
-        Extract hotel preferences from natural language
+    def _extract_guests_llm(self, query: str) -> Dict[str, Optional[int]]:
+        """LLM-based guest extraction"""
+        prompt = f"""Extract guest information from: "{query}"
+
+Respond with ONLY JSON: {{"adults": number or null, "children": number or 0, "rooms": number or 1}}
+
+Examples:
+- "solo traveler" → {{"adults": 1, "children": 0, "rooms": 1}}
+- "couple" → {{"adults": 2, "children": 0, "rooms": 1}}
+- "family of 4" → {{"adults": 2, "children": 2, "rooms": 1}}
+- "2 adults, 1 child, 2 rooms" → {{"adults": 2, "children": 1, "rooms": 2}}"""
+
+        response = self.llm.invoke(prompt)
+        result_text = response.content if hasattr(response, 'content') else str(response)
         
-        Args:
-            query: User query containing preference information
-            
-        Returns:
-            List of matched preferences
-        """
+        try:
+            return json.loads(result_text.strip())
+        except:
+            return {'adults': None, 'children': 0, 'rooms': 1}
+    
+    def _extract_preferences(self, query: str) -> List[str]:
+        """Extract hotel preferences"""
         query_lower = query.lower()
         preferences = []
         
-        for pref_type, keywords in self.preference_mapping.items():
-            if any(keyword in query_lower for keyword in keywords + [pref_type]):
-                preferences.append(pref_type)
+        # Define preference keywords
+        pref_map = {
+            'beach': ['beach', 'coastal', 'ocean', 'seaside', 'waterfront'],
+            'luxury': ['luxury', 'premium', '5-star', 'upscale', 'deluxe'],
+            'budget': ['budget', 'affordable', 'economical', 'cheap'],
+            'city': ['city', 'urban', 'downtown', 'colombo'],
+            'romantic': ['romantic', 'honeymoon', 'couple', 'intimate'],
+            'family': ['family', 'kids', 'children', 'family-friendly'],
+            'spa': ['spa', 'wellness', 'massage', 'relaxation'],
+            'nature': ['nature', 'eco', 'wildlife', 'safari']
+        }
+        
+        for pref_key, keywords in pref_map.items():
+            if any(kw in query_lower for kw in keywords):
+                preferences.append(pref_key)
         
         return preferences
-
-
-class DestinationExtractionTool:
-    """MCP tool for extracting destination information"""
     
-    @staticmethod
-    def extract_destination(query: str) -> Optional[str]:
-        """
-        Extract destination from natural language
-        
-        Args:
-            query: User query containing destination information
-            
-        Returns:
-            Destination name ("Sri Lanka" or "Maldives") or None
-        """
+    def _extract_hotel_name(self, query: str, destination: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Extract specific hotel name mentioned in query"""
         query_lower = query.lower()
         
-        # Direct destination mentions
-        if any(word in query_lower for word in ['sri lanka', 'srilanka', 'ceylon']):
-            return "Sri Lanka"
-        if any(word in query_lower for word in ['maldives', 'maldive']):
-            return "Maldives"
-        
-        # City/location mentions for Sri Lanka
-        sri_lanka_places = ['colombo', 'kandy', 'galle', 'habarana', 'beruwala', 'negombo']
-        if any(place in query_lower for place in sri_lanka_places):
-            return "Sri Lanka"
-        
-        # Atoll mentions for Maldives
-        maldives_places = ['atoll', 'kaafu', 'vaavu', 'meemu', 'male']
-        if any(place in query_lower for place in maldives_places):
-            return "Maldives"
+        # Search through hotels data
+        for dest in self.hotels_data.get('destinations', []):
+            # Filter by destination if specified
+            if destination and dest['name'] != destination:
+                continue
+            
+            for hotel in dest.get('properties', []):
+                hotel_name = hotel['name'].lower()
+                hotel_words = set(hotel_name.split()) - {'hotel', 'resort', 'by', 'the', 'at', 'in'}
+                
+                # Check if significant hotel name parts are in query
+                matches = sum(1 for word in hotel_words if word in query_lower)
+                if matches >= 2 or hotel_name in query_lower:
+                    return hotel
         
         return None
+    
+    def _determine_next_action(self, state: Dict[str, Any], extracted: Dict[str, Any]) -> str:
+        """Determine the next step in booking flow"""
+        has_destination = state.get('destination') is not None
+        has_hotel = state.get('selected_property') is not None
+        has_dates = state.get('check_in') is not None
+        has_guests = state.get('adults') is not None
+        has_preferences = len(state.get('property_preferences', [])) > 0
+        
+        if has_hotel and has_dates and has_guests:
+            return 'show_rooms'
+        elif has_hotel:
+            return 'collect_booking_details'
+        elif has_destination and has_preferences:
+            return 'recommend_hotels'
+        elif has_destination:
+            return 'ask_preferences'
+        else:
+            return 'ask_destination'
+    
+    def _build_response(self, state: Dict[str, Any], extracted: Dict[str, Any], next_action: str) -> str:
+        """Build contextual response based on state and next action"""
+        response = ""
+        
+        # Acknowledge extracted info from THIS query
+        if extracted:
+            ack_items = []
+            if 'destination' in extracted:
+                ack_items.append(f"destination: **{extracted['destination']}**")
+            if 'check_in' in extracted:
+                ack_items.append(f"dates: **{extracted['check_in']} to {extracted['check_out']}**")
+            if 'adults' in extracted:
+                guest_text = f"{extracted['adults']} adult" + ("s" if extracted['adults'] > 1 else "")
+                if extracted.get('children', 0) > 0:
+                    guest_text += f", {extracted['children']} child" + ("ren" if extracted['children'] > 1 else "")
+                ack_items.append(f"guests: **{guest_text}**")
+            if 'hotel' in extracted:
+                ack_items.append(f"hotel: **{extracted['hotel']}**")
+            
+            if ack_items:
+                response += "Perfect! I've noted: " + ", ".join(ack_items) + ".\n\n"
+        
+        # Show what we ALREADY HAVE in the complete state
+        current_info = []
+        if state.get('destination'):
+            current_info.append(f"destination={state['destination']}")
+        if state.get('selected_property'):
+            current_info.append(f"hotel={state['selected_property']['name']}")
+        if state.get('check_in'):
+            current_info.append(f"dates={state['check_in']} to {state['check_out']}")
+        if state.get('adults'):
+            guests_text = f"{state['adults']} adult"
+            if state['adults'] > 1:
+                guests_text += "s"
+            if state.get('children', 0) > 0:
+                guests_text += f", {state['children']} child" + ("ren" if state['children'] > 1 else "")
+            current_info.append(f"guests={guests_text}")
+        
+        if current_info:
+            response += f"✓ I already have: {', '.join(current_info)}.\n\n"
+        
+        # Next step guidance
+        if next_action == 'ask_destination':
+            response += "Which destination interests you?\n• **Sri Lanka** - Beaches, culture, diverse experiences\n• **Maldives** - Luxury island resorts"
+        
+        elif next_action == 'ask_preferences':
+            response += f"Great! What type of property are you looking for in **{state['destination']}**?\n"
+            response += "You can describe your ideal vacation (e.g., 'beach resort', 'luxury city hotel', 'family-friendly')"
+        
+        elif next_action == 'recommend_hotels':
+            response += "Let me find the perfect properties for you!"
+        
+        elif next_action == 'collect_booking_details':
+            missing = []
+            if not state.get('check_in'):
+                missing.append("travel dates")
+            if not state.get('adults'):
+                missing.append("number of guests")
+            if missing:
+                response += f"To complete your booking for **{state['selected_property']['name']}**, I need: {', '.join(missing)}"
+        
+        elif next_action == 'show_rooms':
+            response += "Great! I have all your details. Let me check available rooms..."
+        
+        return response
+
+
+class HotelRecommendationTool:
+    """Simplified hotel recommendation tool"""
+    
+    def __init__(self, hotels_data: Dict[str, Any], llm=None):
+        self.hotels_data = hotels_data
+        self.llm = llm
+    
+    def recommend_hotels(self, destination: str, preferences: List[str], query: str = "") -> List[Dict[str, Any]]:
+        """
+        Recommend hotels based on destination and preferences
+        
+        Returns top 1-3 hotels ranked by relevance
+        """
+        # Get hotels for destination
+        hotels = []
+        for dest in self.hotels_data.get('destinations', []):
+            if dest['name'] == destination:
+                hotels = dest.get('properties', [])
+                break
+        
+        if not hotels:
+            return []
+        
+        # If no preferences, return all hotels
+        if not preferences and not query:
+            return hotels[:3]
+        
+        # Use LLM for intelligent ranking if available
+        if self.llm:
+            try:
+                return self._rank_hotels_llm(hotels, preferences, query)
+            except Exception as e:
+                print(f"LLM ranking failed, using simple filter: {e}")
+        
+        # Fallback: Simple preference matching
+        return self._simple_rank(hotels, preferences)
+    
+    def _rank_hotels_llm(self, hotels: List[Dict], preferences: List[str], query: str) -> List[Dict]:
+        """Use LLM to rank hotels"""
+        hotels_info = [{
+            'index': i,
+            'name': h['name'],
+            'type': h.get('type', ''),
+            'location': h.get('location', ''),
+            'description': h.get('description', '')
+        } for i, h in enumerate(hotels)]
+        
+        prompt = f"""Rank these hotels for a user who wants: {', '.join(preferences)}
+Query: "{query}"
+
+Hotels: {json.dumps(hotels_info, indent=2)}
+
+Respond with ONLY a JSON array of top 3 hotel indices: [index1, index2, index3]"""
+
+        response = self.llm.invoke(prompt)
+        result_text = response.content if hasattr(response, 'content') else str(response)
+        
+        try:
+            indices = json.loads(result_text.strip())
+            return [hotels[i] for i in indices[:3] if i < len(hotels)]
+        except:
+            return hotels[:3]
+    
+    def _simple_rank(self, hotels: List[Dict], preferences: List[str]) -> List[Dict]:
+        """Simple preference-based ranking"""
+        scored_hotels = []
+        
+        for hotel in hotels:
+            score = 0
+            hotel_text = f"{hotel.get('name', '')} {hotel.get('description', '')} {hotel.get('type', '')}".lower()
+            
+            for pref in preferences:
+                if pref.lower() in hotel_text:
+                    score += 1
+            
+            scored_hotels.append((score, hotel))
+        
+        # Sort by score (descending) and return top 3
+        scored_hotels.sort(key=lambda x: x[0], reverse=True)
+        return [h for _, h in scored_hotels[:3]]
 
 
 class ReservationUrlTool:
-    """MCP tool for generating reservation URLs"""
+    """Generate reservation/booking URLs"""
     
     @staticmethod
-    def generate_reservation_url(property_data: Dict[str, Any], reservation_data: Dict[str, Any]) -> str:
+    def generate_reservation_url(hotel: Dict[str, Any], booking_data: Dict[str, Any]) -> str:
         """
-        Generate Cinnamon Hotels reservation URL
+        Generate booking URL matching Cinnamon Hotels reservation system format.
         
-        Args:
-            property_data: Hotel property information
-            reservation_data: Reservation details (dates, guests, etc.)
-            
-        Returns:
-            Complete reservation URL
+        Expected format:
+        https://reservations.cinnamonhotels.com/?adult=2&arrive=2025-10-20&chain=31106&child=0
+        &currency=USD&depart=2025-10-21&hotel=42169&level=hotel&locale=en-US&rooms=1
         """
         base_url = "https://reservations.cinnamonhotels.com/"
         
+        # Build params matching the official format
         params = {
-            '_ga': 'GA1.2.729931654.1757909071',
-            'adult': reservation_data.get('adults', 1),
-            'arrive': reservation_data.get('check_in', ''),
-            'chain': property_data.get('chain_id', '31106'),
-            'child': reservation_data.get('children', 0),
-            'currency': 'USD',
-            'depart': reservation_data.get('check_out', ''),
-            'hotel': property_data.get('id', ''),
+            'adult': booking_data.get('adults', 1),
+            'child': booking_data.get('children', 0),
+            'rooms': booking_data.get('rooms', 1),
+            'arrive': booking_data.get('check_in', ''),
+            'depart': booking_data.get('check_out', ''),
+            'hotel': hotel.get('id', ''),
+            'chain': hotel.get('chain_id', '31106'),
             'level': 'hotel',
             'locale': 'en-US',
+            'currency': 'USD',
             'productcurrency': 'USD',
-            'rooms': reservation_data.get('rooms', 1),
             'segment': 'noMealPlanAssigned'
         }
         
-        return base_url + '?' + urlencode(params)
-
-
-class IntentClassificationTool:
-    """MCP tool for classifying user intent"""
-    
-    @staticmethod
-    def classify_intent(query: str) -> str:
-        """
-        Classify user intent from natural language
+        # Remove empty params
+        params = {k: v for k, v in params.items() if v}
         
-        Args:
-            query: User query to classify
-            
-        Returns:
-            Intent classification string
-        """
-        query_lower = query.lower()
-        
-        if any(word in query_lower for word in ['book', 'reserve', 'confirm', 'complete']):
-            return 'confirm_booking'
-        elif any(word in query_lower for word in ['when', 'date', 'check', 'weekend', 'tomorrow', 'today', 'next week', 'this week']):
-            return 'provide_dates'
-        elif 'select' in query_lower or any(str(i) in query for i in range(1, 6)):
-            return 'select_property'
-        elif any(word in query_lower for word in ['search', 'find', 'look', 'want']):
-            return 'search'
-        else:
-            return 'general_inquiry'
+        return f"{base_url}?{urlencode(params)}"
 
 
-# MCP Tool Registry
 class MCPToolRegistry:
-    """Registry for all MCP tools"""
+    """Simplified registry for all MCP tools"""
     
-    def __init__(self, hotels_data: Dict[str, Any]):
-        self.hotel_search = HotelSearchTool(hotels_data)
-        self.date_extraction = DateExtractionTool()
-        self.guest_extraction = GuestExtractionTool()
-        self.preference_extraction = PreferenceExtractionTool(hotels_data)
-        self.destination_extraction = DestinationExtractionTool()
+    def __init__(self, hotels_data: Dict[str, Any], llm=None):
+        self.universal_booking = UniversalBookingTool(hotels_data, llm)
+        self.hotel_recommendation = HotelRecommendationTool(hotels_data, llm)
         self.reservation_url = ReservationUrlTool()
-        self.intent_classification = IntentClassificationTool()
+        
+        # Keep legacy tools for backward compatibility
+        self.destination_extraction = self.universal_booking
+        self.date_extraction = self.universal_booking
+        self.guest_extraction = self.universal_booking
+        self.preference_extraction = self.universal_booking
+        self.hotel_search = self.hotel_recommendation
     
     def get_available_tools(self) -> List[str]:
         """Get list of available tool names"""
         return [
-            'search_hotels',
-            'find_property_by_name',
-            'extract_dates',
-            'extract_guests',
-            'extract_preferences',
-            'extract_destination',
-            'generate_reservation_url',
-            'classify_intent'
+            'process_booking_query',  # Main universal tool
+            'recommend_hotels',
+            'generate_reservation_url'
         ]

@@ -5,4 +5,4 @@
 *.pyc
 src/data
 src/tests
-src/frontend/node_modules
+src/octave/chml/chatbot/frontend/node_modules

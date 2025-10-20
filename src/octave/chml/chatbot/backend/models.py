@@ -2,8 +2,8 @@ import os
 
 import httpx
 from dotenv import load_dotenv
-from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import AzureChatOpenAI
 
 # Load environment variables from .env file
 load_dotenv()
@@ -49,7 +49,7 @@ def get_gemini_llm():
 
     # Google Gemini configuration with API key authentication
     api_key = os.getenv("GOOGLE_API_KEY")
-    
+
     if not api_key:
         raise ValueError("GOOGLE_API_KEY environment variable is required")
 

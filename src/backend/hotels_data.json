@@ -1,0 +1,106 @@
+{
+  "destinations": [
+    {
+      "name": "Sri Lanka",
+      "code": "LK",
+      "properties": [
+        {
+          "id": "46401",
+          "name": "Cinnamon Grand Colombo",
+          "type": "city",
+          "description": "Luxury city hotel in the heart of Colombo",
+          "location": "Colombo",
+          "preferences": ["urban", "business", "luxury", "shopping"],
+          "amenities": ["spa", "pool", "fitness", "restaurants", "business_center"],
+          "chain_id": "31106"
+        },
+        {
+          "id": "46402",
+          "name": "Cinnamon Lakeside Colombo",
+          "type": "coastal",
+          "description": "Waterfront hotel with lake and city views",
+          "location": "Colombo",
+          "preferences": ["coastal", "luxury", "romantic", "business"],
+          "amenities": ["spa", "pool", "restaurants", "lake_view"],
+          "chain_id": "31106"
+        },
+        {
+          "id": "46403",
+          "name": "Cinnamon Lodge Habarana",
+          "type": "nature",
+          "description": "Eco-friendly resort near ancient cultural sites",
+          "location": "Habarana",
+          "preferences": ["nature", "cultural", "eco-friendly", "adventure"],
+          "amenities": ["spa", "pool", "wildlife_safari", "cultural_tours"],
+          "chain_id": "31106"
+        },
+        {
+          "id": "46404",
+          "name": "Cinnamon Bey Beruwala",
+          "type": "coastal",
+          "description": "Beachfront resort with stunning ocean views",
+          "location": "Beruwala",
+          "preferences": ["coastal", "beach", "family", "romantic"],
+          "amenities": ["beach_access", "spa", "pool", "water_sports", "kids_club"],
+          "chain_id": "31106"
+        },
+        {
+          "id": "46405",
+          "name": "Cinnamon Citadel Kandy",
+          "type": "hill_country",
+          "description": "Scenic hotel overlooking Kandy Lake and mountains",
+          "location": "Kandy",
+          "preferences": ["hill_country", "cultural", "scenic", "peaceful"],
+          "amenities": ["spa", "pool", "mountain_view", "cultural_tours"],
+          "chain_id": "31106"
+        }
+      ]
+    },
+    {
+      "name": "Maldives",
+      "code": "MV",
+      "properties": [
+        {
+          "id": "46406",
+          "name": "Cinnamon Dhonveli Maldives",
+          "type": "coastal",
+          "description": "Beachfront resort with overwater villas",
+          "location": "Kaafu Atoll",
+          "preferences": ["coastal", "luxury", "romantic", "diving"],
+          "amenities": ["beach_access", "overwater_villas", "spa", "diving_center", "water_sports"],
+          "chain_id": "31106"
+        },
+        {
+          "id": "46407",
+          "name": "Cinnamon Velifushi Maldives",
+          "type": "coastal",
+          "description": "Island resort with pristine beaches and coral reefs",
+          "location": "Vaavu Atoll",
+          "preferences": ["coastal", "luxury", "diving", "romantic", "honeymoon"],
+          "amenities": ["beach_access", "spa", "diving_center", "snorkeling", "sunset_cruise"],
+          "chain_id": "31106"
+        },
+        {
+          "id": "46408",
+          "name": "Cinnamon Hakuraa Huraa Maldives",
+          "type": "coastal",
+          "description": "Adults-only resort perfect for romantic getaways",
+          "location": "Meemu Atoll",
+          "preferences": ["coastal", "adults_only", "romantic", "luxury", "honeymoon"],
+          "amenities": ["beach_access", "spa", "adults_only", "romantic_dining", "water_sports"],
+          "chain_id": "31106"
+        }
+      ]
+    }
+  ],
+  "preference_mapping": {
+    "coastal": ["beach", "ocean", "sea", "waterfront", "beachfront"],
+    "nature": ["wildlife", "eco", "jungle", "forest", "safari"],
+    "luxury": ["premium", "high-end", "deluxe", "exclusive"],
+    "cultural": ["heritage", "historical", "traditional", "cultural sites"],
+    "family": ["kids", "children", "family-friendly"],
+    "romantic": ["couples", "honeymoon", "intimate", "romantic"],
+    "business": ["corporate", "meeting", "conference", "business"],
+    "adventure": ["activities", "sports", "outdoor", "adventure"]
+  }
+}

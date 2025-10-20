@@ -5,3 +5,4 @@
 *.pyc
 src/data
 src/tests
+src/frontend/node_modules

@@ -1,10 +1,24 @@
-from datetime import datetime
-from typing import Optional
+"""Hotel booking chatbot FastAPI backend.
 
-from booking_agent import HotelBookingAgent
+========================================================================================
+ Copyright (c) 2025 OCTAVE. All rights reserved.
+
+ This is proprietary and confidential software of OCTAVE.
+ Unauthorized use, reproduction, or distribution is strictly prohibited.
+========================================================================================
+"""
+
+import datetime
+import logging
+from typing import Dict, Optional
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+from octave.chml.chatbot.backend import booking_agent
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Hotel Booking Chatbot API")
 
@@ -18,18 +32,22 @@ app.add_middleware(
 )
 
 # Initialize the booking agent
-booking_agent = HotelBookingAgent()
+booking_agent = booking_agent.HotelBookingAgent()
 
 # In-memory session storage (use Redis in production)
-sessions = {}
+sessions: Dict[str, dict] = {}
 
 
 class QueryRequest(BaseModel):
+    """Request model for user queries."""
+
     query: str
     session_id: str
 
 
 class QueryResponse(BaseModel):
+    """Response model for user queries."""
+
     response: str
     show_form: bool = False
     prefilled_data: Optional[dict] = None
@@ -37,12 +55,15 @@ class QueryResponse(BaseModel):
 
 
 class ReservationRequest(BaseModel):
+    """Request model for hotel reservations."""
+
     session_id: str
     reservation_data: dict
 
 
 @app.get("/")
 def read_root():
+    """Root endpoint returning API status."""
     return {"message": "Hotel Booking Chatbot API is running"}
 
 
@@ -54,9 +75,14 @@ async def process_query(request: QueryRequest):
 
     # Get or create session state
     session_state = sessions.get(session_id)
-    print(f"Calling process_message {query} with session state {session_state}")
+
+    logger.info(
+        "Calling process_message %s with session state: %s", query, session_state
+    )
     # Process the message through the agent
-    result = booking_agent.process_message(query, session_state)
+    result = booking_agent.process_message(
+        query, session_state if session_state is not None else {}
+    )
 
     # Update session
     sessions[session_id] = result["state"]
@@ -106,7 +132,7 @@ async def process_query(request: QueryRequest):
 
 @app.post("/process_reservation")
 async def process_reservation(request: ReservationRequest):
-    """Process final reservation with form data"""
+    """Process final reservation with form data."""
     session_id = request.session_id
     reservation_data = request.reservation_data
 
@@ -128,7 +154,7 @@ async def process_reservation(request: ReservationRequest):
         "rooms": reservation_data.get("rooms", 1),
     }
 
-    print(f"Finalizing booking with data: {booking_data}")
+    logger.info("Finalizing booking with data: %s", booking_data)
 
     # Generate reservation URL
     reservation_url = generate_reservation_url(booking_data)
@@ -137,7 +163,7 @@ async def process_reservation(request: ReservationRequest):
 
 
 def generate_reservation_url(booking_data: dict) -> str:
-    """Generate the Cinnamon Hotels reservation URL with query parameters"""
+    """Generate Cinnamon Hotels reservation URL with query parameters."""
     base_url = "https://reservations.cinnamonhotels.com/"
 
     # Format dates for URL (YYYY-MM-DD)
@@ -149,21 +175,22 @@ def generate_reservation_url(booking_data: dict) -> str:
     url += f"&arrive={check_in}"
     url += f"&chain={booking_data['chain_id']}"
     url += f"&child={booking_data['children']}"
-    url += f"&currency=USD"
+    url += "&currency=USD"
     url += f"&depart={check_out}"
     url += f"&hotel={booking_data['property_id']}"
-    url += f"&level=hotel"
-    url += f"&locale=en-US"
-    url += f"&productcurrency=USD"
+    url += "&level=hotel"
+    url += "&locale=en-US"
+    url += "&productcurrency=USD"
     url += f"&rooms={booking_data['rooms']}"
-    url += f"&segment=BB"
+    url += "&segment=BB"
 
     return url
 
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+    """Health check endpoint returning service status."""
+    return {"status": "healthy", "timestamp": datetime.datetime.now().isoformat()}
 
 
 if __name__ == "__main__":

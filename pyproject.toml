@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chml_chatbot"
+version = "0.1.0"
+description = "Chatbot for CHML"
+authors = [
+    { name="Mansitha Eashwara", email="mansithae@jkinatranet.com" }
+]
+requires-python = ">=3.8"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = ["-ra", "-q", "--import-mode=importlib"]
+testpaths = ["tests"]
+pythonpath = ["src"]

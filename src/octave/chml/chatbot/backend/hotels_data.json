@@ -10,7 +10,7 @@
           "type": "city",
           "description": "Luxury city hotel in the heart of Colombo",
           "location": "Colombo",
-          "preferences": ["urban", "business", "luxury", "shopping"],
+          "preferences": ["business", "luxury", "shopping"],
           "amenities": ["spa", "pool", "fitness", "restaurants", "business_center"],
           "chain_id": "31106"
         },
@@ -20,7 +20,7 @@
           "type": "coastal",
           "description": "Waterfront hotel with lake and city views",
           "location": "Colombo",
-          "preferences": ["coastal", "luxury", "romantic", "business"],
+          "preferences": ["luxury", "romantic", "business"],
           "amenities": ["spa", "pool", "restaurants", "lake_view"],
           "chain_id": "31106"
         },

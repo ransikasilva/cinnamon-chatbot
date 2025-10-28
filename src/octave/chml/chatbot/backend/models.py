@@ -1,24 +1,27 @@
+"""LLM model configuration and initialization utilities.
+
+========================================================================================
+ Copyright (c) 2025 OCTAVE. All rights reserved.
+
+ This is proprietary and confidential software of OCTAVE.
+ Unauthorized use, reproduction, or distribution is strictly prohibited.
+========================================================================================
+"""
+
 import os
 
+import dotenv
 import httpx
-from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import AzureChatOpenAI
+import langchain_google_genai
+import langchain_openai
+from langchain_core.utils import utils
 
 # Load environment variables from .env file
-load_dotenv()
-
-# Global variable to cache LLM
-_cached_llm = None
-_cached_gemini_llm = None
+dotenv.load_dotenv()
 
 
 def get_llm():
-    global _cached_llm
-
-    # Return cached LLM if it exists
-    if _cached_llm is not None:
-        return _cached_llm
+    """Get the Azure OpenAI LLM with API key authentication and caching."""
 
     # Azure OpenAI configuration with API key authentication
     endpoint = os.getenv("ENDPOINT_URL")
@@ -28,24 +31,21 @@ def get_llm():
         raise ValueError("AZURE_OPENAI_API_KEY environment variable is required")
 
     # Create and cache the LLM using API key authentication
-    _cached_llm = AzureChatOpenAI(
+
+    llm = langchain_openai.AzureChatOpenAI(
         azure_deployment=deployment,
         azure_endpoint=endpoint,
         api_version="2025-01-01-preview",
         temperature=0.0,
-        api_key=api_key,
+        api_key=utils.convert_to_secret_str(api_key),
         http_client=httpx.Client(verify=False),
     )
 
-    return _cached_llm
+    return llm
 
 
 def get_gemini_llm():
-    global _cached_gemini_llm
-
-    # Return cached Gemini LLM if it exists
-    if _cached_gemini_llm is not None:
-        return _cached_gemini_llm
+    """Get the Google Gemini LLM with API key authentication"""
 
     # Google Gemini configuration with API key authentication
     api_key = os.getenv("GOOGLE_API_KEY")
@@ -54,10 +54,10 @@ def get_gemini_llm():
         raise ValueError("GOOGLE_API_KEY environment variable is required")
 
     # Create and cache the Gemini LLM
-    _cached_gemini_llm = ChatGoogleGenerativeAI(
+    llm = langchain_google_genai.ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
         google_api_key=api_key,
         temperature=0.0,
     )
 
-    return _cached_gemini_llm
+    return llm

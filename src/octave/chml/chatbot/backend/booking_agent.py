@@ -8,17 +8,15 @@
 ========================================================================================
 """
 
-import functools
 import json
 import logging
 import pathlib
 from typing import Optional
 
 from langchain_core import messages
-from langgraph import graph
 
 from octave.chml.chatbot.backend import models
-from octave.chml.chatbot.backend.graph import edges, nodes, states
+from octave.chml.chatbot.backend.graph import graph_defs
 
 logger = logging.getLogger(__name__)
 
@@ -38,59 +36,7 @@ class HotelBookingAgent:
             self.hotels_data = json.load(f)
 
         # Build the graph
-        self.graph = self._build_graph()
-
-    def _build_graph(self):
-        """Build the LangGraph workflow."""
-        workflow = graph.StateGraph(states.BookingState)
-
-        # Add nodes
-        workflow.add_node(
-            "extract_booking_info",
-            functools.partial(
-                nodes.extract_booking_info_node,
-                hotels_data=self.hotels_data,
-                llm=self.llm,
-            ),
-        )
-        workflow.add_node("check_destination", nodes.check_destination_node)
-        workflow.add_node(
-            "check_property",
-            functools.partial(
-                nodes.check_property_node,
-                hotels_data=self.hotels_data,
-                llm=self.llm,
-            ),
-        )
-        workflow.add_node("check_booking_details", nodes.check_booking_details_node)
-        workflow.add_node("finalize", nodes.finalize_node)
-
-        # Set entry point
-        workflow.set_entry_point("extract_booking_info")
-
-        # Add edges
-        workflow.add_edge("extract_booking_info", "check_destination")
-        workflow.add_conditional_edges(
-            "check_destination",
-            edges.route_after_destination,
-            {"check_property": "check_property", "ask_destination": graph.END},
-        )
-        workflow.add_conditional_edges(
-            "check_property",
-            functools.partial(edges.route_after_property, llm=self.llm),
-            {
-                "check_booking_details": "check_booking_details",
-                "ask_property": graph.END,
-            },
-        )
-        workflow.add_conditional_edges(
-            "check_booking_details",
-            edges.route_after_booking_details,
-            {"finalize": "finalize", "ask_details": graph.END},
-        )
-        workflow.add_edge("finalize", graph.END)
-
-        return workflow.compile()
+        self.graph = graph_defs.build_booking_graph(self.hotels_data, self.llm)
 
     def process_message(
         self, user_message: str, session_state: Optional[dict] = None

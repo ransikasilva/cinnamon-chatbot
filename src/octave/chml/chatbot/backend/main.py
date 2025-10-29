@@ -12,19 +12,19 @@ import datetime
 import logging
 from typing import Dict, Optional
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+import fastapi
+import pydantic
+from fastapi.middleware import cors
 
-from octave.chml.chatbot.backend import booking_agent
+from octave.chml.chatbot.backend import booking_agent as ba
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Hotel Booking Chatbot API")
+app = fastapi.FastAPI(title="Hotel Booking Chatbot API")
 
 # Enable CORS
 app.add_middleware(
-    CORSMiddleware,
+    cors.CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
@@ -32,20 +32,20 @@ app.add_middleware(
 )
 
 # Initialize the booking agent
-booking_agent = booking_agent.HotelBookingAgent()
+booking_agent = ba.HotelBookingAgent()
 
 # In-memory session storage (use Redis in production)
 sessions: Dict[str, dict] = {}
 
 
-class QueryRequest(BaseModel):
+class QueryRequest(pydantic.BaseModel):
     """Request model for user queries."""
 
     query: str
     session_id: str
 
 
-class QueryResponse(BaseModel):
+class QueryResponse(pydantic.BaseModel):
     """Response model for user queries."""
 
     response: str
@@ -54,7 +54,7 @@ class QueryResponse(BaseModel):
     reservation_url: Optional[str] = None
 
 
-class ReservationRequest(BaseModel):
+class ReservationRequest(pydantic.BaseModel):
     """Request model for hotel reservations."""
 
     session_id: str

@@ -28,7 +28,7 @@ class HotelBookingAgent:
         self.llm = models.get_llm()
 
         hotel_data_path = (
-            pathlib.Path(__file__).parents[5] / "resources" / "hotels_data.json"
+            pathlib.Path(__file__).parents[0] / "resources" / "hotels_data.json"
         )
 
         # Load hotels data

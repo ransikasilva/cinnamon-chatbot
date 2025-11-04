@@ -8,3 +8,4 @@ src/tests
 src/octave/chml/chatbot/frontend/node_modules
 src/chml_chatbot.egg-info
 .vscode
+/venv

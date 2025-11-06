@@ -12,7 +12,7 @@ import json
 import logging
 from typing import Literal, TypeAlias
 
-from octave.chml.chatbot.backend.graph import states
+from octave.chml.chatbot.backend.app.workflows.booking_workflow.graph import states
 
 BookingState: TypeAlias = states.BookingState
 

@@ -15,8 +15,8 @@ from typing import Optional
 
 from langchain_core import messages
 
-from octave.chml.chatbot.backend import models
-from octave.chml.chatbot.backend.graph import graph_defs
+from octave.chml.chatbot.backend.app.services import llm_service
+from octave.chml.chatbot.backend.app.workflows.booking_workflow.graph import graph_defs
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +25,10 @@ class HotelBookingAgent:
     """Hotel booking agent using LangGraph for state management"""
 
     def __init__(self):
-        self.llm = models.get_llm()
+        self.llm = llm_service.get_llm()
 
         hotel_data_path = (
-            pathlib.Path(__file__).parents[0] / "resources" / "hotels_data.json"
+            pathlib.Path(__file__).parents[4] / "resources" / "hotels_data.json"
         )
 
         # Load hotels data

@@ -12,7 +12,7 @@ import functools
 
 from langgraph import graph
 
-from octave.chml.chatbot.backend.graph import edges, nodes, states
+from octave.chml.chatbot.backend.app.workflows.booking_workflow.graph import edges, nodes, states
 
 
 def build_booking_graph(hotels_data: dict, llm):

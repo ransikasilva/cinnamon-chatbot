@@ -15,7 +15,7 @@ from typing import TypeAlias
 
 from langchain_core import messages
 
-from octave.chml.chatbot.backend.graph import states
+from octave.chml.chatbot.backend.app.workflows.booking_workflow.graph import states
 
 BookingState: TypeAlias = states.BookingState
 

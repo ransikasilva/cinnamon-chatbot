@@ -16,7 +16,7 @@ import fastapi
 import pydantic
 from fastapi.middleware import cors
 
-from octave.chml.chatbot.backend import booking_agent as ba
+from octave.chml.chatbot.backend.app.workflows.booking_workflow.agents import booking_agent as ba
 
 logger = logging.getLogger(__name__)
 

@@ -7,14 +7,16 @@
  Unauthorized use, reproduction, or distribution is strictly prohibited.
 ========================================================================================
 """
+
 import logging
-from typing import Dict
 
 import fastapi
 
 from octave.chml.chatbot.backend.app.schemas import requests, responses
-from octave.chml.chatbot.backend.app.workflows.booking_workflow.agents import booking_agent as ba
 from octave.chml.chatbot.backend.app.utils import helpers
+from octave.chml.chatbot.backend.app.workflows.booking_workflow.agents import (
+    booking_agent as ba,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +25,8 @@ router = fastapi.APIRouter()
 # Initialize the booking agent
 booking_agent = ba.HotelBookingAgent()
 
-# In-memory session storage (use Redis in production)
-sessions: Dict[str, dict] = {}
+# # In-memory session storage (use Redis in production)
+# sessions: Dict[str, dict] = {}
 
 
 @router.post("/process_query", response_model=responses.QueryResponse)
@@ -33,19 +35,10 @@ async def process_query(request: requests.QueryRequest):
     session_id = request.session_id
     query = request.query
 
-    # Get or create session state
-    session_state = sessions.get(session_id)
+    logger.info("Processing message '%s' for thread_id: %s", query, session_id)
 
-    logger.info(
-        "Calling process_message %s with session state: %s", query, session_state
-    )
     # Process the message through the agent
-    result = booking_agent.process_message(
-        query, session_state if session_state is not None else {}
-    )
-
-    # Update session
-    sessions[session_id] = result["state"]
+    result = booking_agent.process_message(query, thread_id=session_id)
 
     response = responses.QueryResponse(
         response=result["response"],
@@ -96,14 +89,15 @@ async def process_reservation(request: requests.ReservationRequest):
     session_id = request.session_id
     reservation_data = request.reservation_data
 
-    # Get session state
-    session_state = sessions.get(session_id)
+    # Get current state from LangGraph checkpointer
+    config = {"configurable": {"thread_id": session_id}}
+    current_state = booking_agent.graph.get_state(config)  # type: ignore
 
-    if not session_state or not session_state.get("selected_property"):
+    if not current_state.values or not current_state.values.get("selected_property"):
         return {"error": "Invalid session or no property selected"}
 
     # Prepare booking data
-    selected_property = session_state["selected_property"]
+    selected_property = current_state.values["selected_property"]
     booking_data = {
         "property_id": selected_property["id"],
         "chain_id": selected_property["chain_id"],

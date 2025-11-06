@@ -91,3 +91,18 @@ def route_after_booking_details(
     if state.get("ready_for_booking"):
         return "finalize"
     return "ask_details"
+
+
+def route_by_intent(
+    state: BookingState,
+) -> Literal["handle_info", "continue_booking"]:
+    """Route to appropriate node based on classified intent."""
+    intent = state.get("_intent", "booking")
+
+    logger.debug("=== ROUTING: route_by_intent -> intent=%s ===", intent)
+
+    if intent == "info_query":
+        return "handle_info"
+    else:
+        # Both "booking" and "general" continue with booking flow
+        return "continue_booking"

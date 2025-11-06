@@ -19,14 +19,24 @@ from octave.chml.chatbot.backend.app.workflows.booking_workflow.graph import sta
 
 BookingState: TypeAlias = states.BookingState
 
+# Configure logging to only show DEBUG from our modules
+logging.basicConfig(
+    level=logging.WARNING,  # Set root logger to WARNING to suppress most external logs
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+
+# Set our specific modules to DEBUG level
+octave_logger = logging.getLogger("octave")
+octave_logger.setLevel(logging.DEBUG)
+
 logger = logging.getLogger(__name__)
 
 
 def extract_booking_info_node(state: BookingState, hotels_data, llm) -> BookingState:
     """Extract booking information from the user's message using the LLM."""
-    logger.debug("EXECUTING: extract_booking_info_node.")
+    logger.debug("=== EXECUTING: extract_booking_info_node ===")
 
-    last_message = state["messages"][-1].content
+    convo_summary = state.get("_conversation_summary", "")
 
     # Get current date for relative date parsing.
     current_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -72,16 +82,8 @@ def extract_booking_info_node(state: BookingState, hotels_data, llm) -> BookingS
     Available hotels:
     {json.dumps(available_hotels, indent=2)}
 
-    User message: "{last_message}"
-
-    Previous conversation context:
-    - Current destination: {state.get('destination')}
-    - Current property preferences: {state.get('property_preferences')}
-    - Current check-in: {state.get('check_in_date')}
-    - Current check-out: {state.get('check_out_date')}
-    - Current adults: {state.get('adults')}
-    - Current children: {state.get('children')}
-    - Current rooms: {state.get('rooms')}
+    Conversation Summary: "{convo_summary}"
+    Users Message: "{state['messages'][-1].content}"
 
     Extract and return ONLY a JSON object with these fields:
     {{
@@ -120,7 +122,7 @@ def extract_booking_info_node(state: BookingState, hotels_data, llm) -> BookingS
         return state
 
     logger.debug("EXTRACTED INFO: %s", extracted_data)
-    logger.debug("BOOKING STATE BEFORE UPDATE: %s", state)
+    # logger.debug("BOOKING STATE BEFORE UPDATE: %s", state)
 
     # Update state with extracted information (only if not null).
     if extracted_data.get("destination"):
@@ -147,7 +149,7 @@ def extract_booking_info_node(state: BookingState, hotels_data, llm) -> BookingS
                 if hotel["id"] == hotel_id:
                     state["selected_property"] = hotel
                     state["destination"] = dest["name"]  # Also set destination
-                    logger.debug("SELECTED PROPERTY BY LLM: %s", hotel['name'])
+                    logger.debug("SELECTED PROPERTY BY LLM: %s", hotel["name"])
                     break
             if state.get("selected_property"):
                 break
@@ -169,6 +171,7 @@ def extract_booking_info_node(state: BookingState, hotels_data, llm) -> BookingS
 def check_destination_node(state: BookingState) -> BookingState:
     """Check if we have destination, if not ask for it"""
     logger.debug("=== EXECUTING: check_destination_node ===")
+    logger.debug("Current destination: %s", state.get("destination"))
 
     if not state.get("destination"):
         # Ask for destination
@@ -341,5 +344,97 @@ def finalize_node(state: BookingState) -> BookingState:
     state["messages"].append(messages.AIMessage(content=response))
     state["conversation_complete"] = True
     state["ready_for_booking"] = True
+
+    return state
+
+
+def classify_intent_node(state: BookingState, llm) -> BookingState:
+    """Classify user intent: booking-related vs informational query."""
+    logger.debug("=== EXECUTING: classify_intent_node ===")
+
+    all_msgs = state["messages"]
+
+    logger.debug("All Messages: %s", all_msgs)
+
+    conversation_history = "\n".join(
+        [
+            f"{'User' if isinstance(m, messages.HumanMessage) else 'Assistant'}: {m.content}"
+            for m in all_msgs[:-1]  # Exclude current message
+        ]
+    )
+
+    # Update conversation summary for other nodes to use
+    # if len(state["messages"]) % 2 == 0:  # Update summary every exchange
+    summary_prompt = f"""Summarize this hotel booking conversation focusing on:
+1. What the user wants (destination, preferences)
+2. What has been discussed or decided
+3. Current booking progress
+
+Recent conversation:
+{conversation_history}
+
+Provide a concise summary:"""
+
+    summary_response = llm.invoke(summary_prompt)
+    state["_conversation_summary"] = summary_response.content.strip()
+    logger.debug("Updated conversation summary: %s", state["_conversation_summary"])
+
+    classification_prompt = f"""Analyze this user message and classify the intent.
+
+Conversation Summary: "{state["_conversation_summary"]}"
+Current Message: "{all_msgs[-1].content}"
+
+Classify as ONE of:
+1. "booking" - User is providing booking details, selecting options, or progressing booking
+2. "info_query" - User is asking about amenities, policies, hotel info, prices, facilities, location details
+3. "general" - Greetings, clarifications, thanks, or other general conversation
+
+Return ONLY ONE WORD: booking, info_query, or general"""
+
+    response = llm.invoke(classification_prompt)
+    intent = response.content.strip().lower()
+
+    # Default to booking if unclear
+    if intent not in ["booking", "info_query", "general"]:
+        intent = "booking"
+
+    state["_intent"] = intent
+    logger.debug("Classified intent: %s", intent)
+
+    return state
+
+
+def handle_info_query_node(state: BookingState, hotels_data, llm) -> BookingState:
+    """Handle informational queries about hotels, amenities, policies, etc."""
+    logger.debug("=== EXECUTING: handle_info_query_node ===")
+
+    last_message = state["messages"][-1].content
+
+    # Use conversation summary if available, otherwise build context
+    conversation_summary = state.get("_conversation_summary", "")
+    context = ""
+    # Add conversation summary for context
+    if conversation_summary:
+        context += f"Conversation so far: {conversation_summary}\n\n"
+
+    info_prompt = f"""You are a helpful hotel booking assistant. Answer the user's question using the provided context.
+
+Context:
+{context}
+
+User question: "{last_message}"
+
+Hotels Data: {json.dumps(hotels_data, indent=2)}
+Provide a helpful, friendly, and concise answer based on the context and the given info. 
+If you don't have specific information, say so politely and offer to help with what you do know.
+
+After answering, gently ask if they'd like to continue with their booking or have other questions."""
+
+    response = llm.invoke(info_prompt)
+
+    state["messages"].append(messages.AIMessage(content=response.content))
+    # Don't change booking state, just answer the question
+
+    logger.debug("Info query answered, returning to conversation flow")
 
     return state

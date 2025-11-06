@@ -11,15 +11,32 @@
 import functools
 
 from langgraph import graph
+from langgraph.checkpoint.memory import MemorySaver
 
-from octave.chml.chatbot.backend.app.workflows.booking_workflow.graph import edges, nodes, states
+from octave.chml.chatbot.backend.app.workflows.booking_workflow.graph import (
+    edges,
+    nodes,
+    states,
+)
 
 
-def build_booking_graph(hotels_data: dict, llm):
-    """Build the LangGraph workflow."""
+def build_booking_graph(hotels_data: dict, llm, checkpointer=None):
+    """Build the LangGraph workflow with flexible query handling and optional checkpointer."""
     workflow = graph.StateGraph(states.BookingState)
 
     # Add nodes
+    workflow.add_node(
+        "classify_intent",
+        functools.partial(nodes.classify_intent_node, llm=llm),
+    )
+    workflow.add_node(
+        "handle_info",
+        functools.partial(
+            nodes.handle_info_query_node,
+            hotels_data=hotels_data,
+            llm=llm,
+        ),
+    )
     workflow.add_node(
         "extract_booking_info",
         functools.partial(
@@ -40,10 +57,23 @@ def build_booking_graph(hotels_data: dict, llm):
     workflow.add_node("check_booking_details", nodes.check_booking_details_node)
     workflow.add_node("finalize", nodes.finalize_node)
 
-    # Set entry point
-    workflow.set_entry_point("extract_booking_info")
+    # Set entry point - always classify intent first
+    workflow.set_entry_point("classify_intent")
 
-    # Add edges
+    # Route based on intent
+    workflow.add_conditional_edges(
+        "classify_intent",
+        edges.route_by_intent,
+        {
+            "handle_info": "handle_info",
+            "continue_booking": "extract_booking_info",
+        },
+    )
+
+    # Info query loops back to allow more questions
+    workflow.add_edge("handle_info", graph.END)
+
+    # Normal booking flow
     workflow.add_edge("extract_booking_info", "check_destination")
     workflow.add_conditional_edges(
         "check_destination",
@@ -65,4 +95,8 @@ def build_booking_graph(hotels_data: dict, llm):
     )
     workflow.add_edge("finalize", graph.END)
 
-    return workflow.compile()
+    # Use provided checkpointer or default to MemorySaver
+    if checkpointer is None:
+        checkpointer = MemorySaver()
+
+    return workflow.compile(checkpointer=checkpointer)

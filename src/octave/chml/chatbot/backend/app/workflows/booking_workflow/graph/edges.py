@@ -99,7 +99,11 @@ def route_by_intent(
     """Route to appropriate node based on classified intent."""
     intent = state.get("_intent", "booking")
 
-    logger.debug("=== ROUTING: route_by_intent -> intent=%s ===", intent)
+    logger.debug(
+        "=== ROUTING: route_by_intent -> intent=%s (from state._intent=%s) ===",
+        intent,
+        state.get("_intent"),
+    )
 
     if intent == "info_query":
         return "handle_info"

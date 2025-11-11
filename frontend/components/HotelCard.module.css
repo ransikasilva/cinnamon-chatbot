@@ -158,43 +158,17 @@
   letter-spacing: 0.5px;
 }
 
-.pricingRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  background: #FAFAFA;
-  padding: 12px;
+.durationInfo {
+  margin-top: 12px;
+  background: #F0E6F6;
+  padding: 10px 12px;
   border-radius: 8px;
+  text-align: center;
 }
 
-.priceInfo, .totalInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.priceLabel, .totalLabel {
-  font-size: 11px;
-  color: #999999;
-  font-family: var(--font-inter), sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.price {
-  font-size: 20px;
-  font-weight: 700;
+.durationLabel {
+  font-size: 13px;
   color: #6B2C91;
-  font-family: var(--font-poppins), sans-serif;
-}
-
-.totalInfo {
-  align-items: flex-end;
-}
-
-.totalPrice {
-  font-size: 18px;
-  font-weight: 700;
-  color: #333333;
-  font-family: var(--font-poppins), sans-serif;
+  font-weight: 600;
+  font-family: var(--font-inter), sans-serif;
 }

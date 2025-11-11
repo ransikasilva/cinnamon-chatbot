@@ -293,6 +293,90 @@ export default function StructuredResponse({ data }: StructuredResponseProps) {
     )
   }
 
+  // Explorer recommendations
+  if (data.type === 'explorer_recommendations') {
+    return (
+      <div className={styles.structuredResponse}>
+        <div className={styles.messageText}>{data.message}</div>
+
+        <div className={styles.section}>
+          {data.recommendations?.map((rec: any, index: number) => (
+            <div key={index} className={styles.explorerCard}>
+              <HotelCard hotel={rec.hotel} />
+              <div className={styles.highlights}>
+                <h5 className={styles.miniTitle}>Highlights:</h5>
+                <ul className={styles.highlightList}>
+                  {rec.highlights?.map((highlight: string, idx: number) => (
+                    <li key={idx}>{highlight}</li>
+                  ))}
+                </ul>
+                <div className={styles.bestFor}>
+                  <strong>Best for:</strong> {rec.best_for}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {data.next_question && (
+          <div className={styles.messageText} style={{ marginTop: '12px' }}>
+            {data.next_question}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Itinerary display
+  if (data.type === 'itinerary') {
+    return (
+      <div className={styles.structuredResponse}>
+        <div className={styles.messageText}>{data.message}</div>
+
+        <div className={styles.itinerarySchedule}>
+          {data.schedule?.morning && (
+            <div className={styles.scheduleBlock}>
+              <div className={styles.scheduleTime}>🌅 {data.schedule.morning.time}</div>
+              <ul className={styles.scheduleList}>
+                {data.schedule.morning.activities.map((activity: string, idx: number) => (
+                  <li key={idx}>{activity}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {data.schedule?.lunch && (
+            <div className={styles.scheduleBlock}>
+              <div className={styles.scheduleTime}>🍽️ {data.schedule.lunch.time}</div>
+              <ul className={styles.scheduleList}>
+                {data.schedule.lunch.activities.map((activity: string, idx: number) => (
+                  <li key={idx}>{activity}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {data.schedule?.evening && (
+            <div className={styles.scheduleBlock}>
+              <div className={styles.scheduleTime}>🌆 {data.schedule.evening.time}</div>
+              <ul className={styles.scheduleList}>
+                {data.schedule.evening.activities.map((activity: string, idx: number) => (
+                  <li key={idx}>{activity}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {data.closing && (
+          <div className={styles.messageText} style={{ marginTop: '12px' }}>
+            {data.closing}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className={styles.structuredResponse}>
       <div className={styles.messageText}>

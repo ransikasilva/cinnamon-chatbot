@@ -213,3 +213,100 @@
   border-color: #6B2C91;
   transform: translateX(4px);
 }
+
+/* Explorer Cards */
+.explorerCard {
+  background: #FAFAFA;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.highlights {
+  background: white;
+  border-radius: 10px;
+  padding: 14px;
+  margin-top: 12px;
+}
+
+.highlightList {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+}
+
+.highlightList li {
+  padding: 6px 0;
+  font-size: 13px;
+  color: #666;
+  font-family: var(--font-inter), sans-serif;
+  position: relative;
+  padding-left: 20px;
+}
+
+.highlightList li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #6B2C91;
+  font-weight: bold;
+}
+
+.bestFor {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #E0E0E0;
+  font-size: 13px;
+  color: #666;
+  font-family: var(--font-inter), sans-serif;
+}
+
+.bestFor strong {
+  color: #6B2C91;
+}
+
+/* Itinerary Schedule */
+.itinerarySchedule {
+  margin: 16px 0;
+}
+
+.scheduleBlock {
+  background: white;
+  border-left: 4px solid #6B2C91;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.scheduleTime {
+  font-size: 14px;
+  font-weight: 700;
+  color: #6B2C91;
+  margin-bottom: 10px;
+  font-family: var(--font-poppins), sans-serif;
+}
+
+.scheduleList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.scheduleList li {
+  padding: 6px 0;
+  font-size: 13px;
+  color: #666;
+  font-family: var(--font-inter), sans-serif;
+  position: relative;
+  padding-left: 20px;
+}
+
+.scheduleList li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: #6B2C91;
+  font-weight: bold;
+  font-size: 16px;
+}

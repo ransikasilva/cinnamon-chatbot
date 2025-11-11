@@ -26,7 +26,6 @@ export default function ActivityCard({ activity, onClick }: ActivityCardProps) {
     <div className={styles.activityCard} onClick={onClick}>
       <div className={styles.activityHeader}>
         <h4 className={styles.activityName}>{activity.activity}</h4>
-        <span className={styles.price}>${activity.price}</span>
       </div>
 
       <div className={styles.activityDetails}>

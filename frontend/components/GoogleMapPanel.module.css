@@ -1,0 +1,174 @@
+.mapPanel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100vh;
+  background: white;
+  z-index: 1000;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+}
+
+.map {
+  width: 100%;
+  height: 100%;
+}
+
+.closeButton {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: white;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s ease;
+  color: #6B2C91;
+}
+
+.closeButton:hover {
+  background: #6B2C91;
+  color: white;
+  transform: scale(1.1);
+}
+
+.closeButton:active {
+  transform: scale(0.95);
+}
+
+/* Custom marker styles */
+.markerPin {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.markerPin:hover {
+  transform: scale(1.15);
+}
+
+.pinIcon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* InfoWindow content styles */
+.infoWindow {
+  max-width: 300px;
+  font-family: var(--font-inter), sans-serif;
+}
+
+.infoImage {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.infoContent {
+  padding: 4px;
+}
+
+.infoTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #6B2C91;
+  margin: 0 0 8px 0;
+  font-family: var(--font-poppins), sans-serif;
+}
+
+.infoRating {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.infoAddress {
+  font-size: 13px;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.infoLoading {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+
+/* Photo carousel in info window */
+.photoCarousel {
+  position: relative;
+  width: 100%;
+}
+
+.photoContainer {
+  position: relative;
+  width: 100%;
+  height: 200px;
+}
+
+.infoImage {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 12px;
+  display: none;
+}
+
+.infoImage.activePhoto {
+  display: block;
+}
+
+.photoNav {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+}
+
+.photoDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.photoDot:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.photoDot.activeDot {
+  background: white;
+  width: 20px;
+  border-radius: 4px;
+}
+
+/* Responsive for maximized chatbot */
+@media (min-width: 768px) {
+  .mapPanel {
+    width: 50%;
+  }
+}
+
+/* When chatbot is in normal/minimized state */
+@media (max-width: 767px) {
+  .mapPanel {
+    width: 40%;
+  }
+}

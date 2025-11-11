@@ -69,19 +69,11 @@ export default function HotelCard({ hotel, room, nights, totalCost, onClick }: H
             </div>
           </div>
 
-          <div className={styles.pricingRow}>
-            <div className={styles.priceInfo}>
-              <span className={styles.priceLabel}>Per Night</span>
-              <span className={styles.price}>${room.price}</span>
+          {nights && (
+            <div className={styles.durationInfo}>
+              <span className={styles.durationLabel}>{nights} night{nights > 1 ? 's' : ''} stay</span>
             </div>
-
-            {nights && totalCost && (
-              <div className={styles.totalInfo}>
-                <span className={styles.totalLabel}>{nights} nights total</span>
-                <span className={styles.totalPrice}>${totalCost}</span>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       )}
     </div>

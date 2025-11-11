@@ -5,6 +5,19 @@ import axios from 'axios'
 import styles from './Chatbot.module.css'
 import StructuredResponse from './StructuredResponse'
 import MapPopup from './MapPopup'
+import BookingForm, { BookingFormData } from './BookingForm'
+import GoogleMapPanel from './GoogleMapPanel'
+import HotelCarousel from './HotelCarousel'
+import TypingText from './TypingText'
+
+interface Hotel {
+  id: string
+  name: string
+  location: string
+  description?: string
+  image?: string
+  highlights?: string[]
+}
 
 interface Message {
   id: string
@@ -12,8 +25,13 @@ interface Message {
   sender: 'user' | 'bot'
   timestamp: Date
   structuredData?: any
-  type?: 'text' | 'structured'
+  type?: 'text' | 'structured' | 'booking_form' | 'hotel_carousel'
   showMapButton?: boolean
+  reservationURL?: string
+  hotels?: Hotel[]
+  selectedHotel?: { id: string; name: string }
+  isTyping?: boolean
+  typingComplete?: boolean
 }
 
 const QUICK_ACTIONS = [
@@ -24,7 +42,7 @@ const QUICK_ACTIONS = [
   { id: 'info', label: 'Info', icon: '/info.png' },
 ]
 
-const API_BASE_URL = 'http://localhost:5000'
+const API_BASE_URL = 'http://localhost:5001'
 
 const DISCOUNT_MESSAGES = [
   "Get 20% off your next booking!",
@@ -34,10 +52,35 @@ const DISCOUNT_MESSAGES = [
   "Limited time offer - 25% off!",
 ]
 
+// Demo user types for testing
+const DEMO_USERS = [
+  {
+    email: 'newbooking@demo.com',
+    type: 'new_booking',
+    label: 'New Booking User',
+    description: 'Book a new hotel reservation'
+  },
+  {
+    email: 'explorer@demo.com',
+    type: 'explorer',
+    label: 'Explorer User',
+    description: 'Explore Sri Lanka and get itineraries'
+  },
+  {
+    email: 'editbooking@demo.com',
+    type: 'edit_booking',
+    label: 'Edit Booking User',
+    description: 'Modify existing reservations'
+  }
+]
+
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(false)
+  const [isMaximized, setIsMaximized] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userEmail, setUserEmail] = useState('')
+  const [userType, setUserType] = useState('')
   const [emailInput, setEmailInput] = useState('')
   const [emailError, setEmailError] = useState('')
   const [currentDiscountIndex, setCurrentDiscountIndex] = useState(0)
@@ -52,7 +95,16 @@ export default function Chatbot() {
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isMapOpen, setIsMapOpen] = useState(false)
+  const [isGoogleMapOpen, setIsGoogleMapOpen] = useState(false)
+  const [isQuickActionsCollapsed, setIsQuickActionsCollapsed] = useState(false)
+  const [hasUserSentMessage, setHasUserSentMessage] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const handleTypingComplete = (messageId: string) => {
+    setMessages(prev => prev.map(msg =>
+      msg.id === messageId ? { ...msg, typingComplete: true } : msg
+    ))
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -62,13 +114,11 @@ export default function Chatbot() {
     scrollToBottom()
   }, [messages])
 
-  // Check if user is already logged in when component mounts
+  // Clear login on page refresh - user must login again
   useEffect(() => {
-    const savedEmail = localStorage.getItem('chatbot_user_email')
-    if (savedEmail) {
-      setUserEmail(savedEmail)
-      setIsLoggedIn(true)
-    }
+    localStorage.removeItem('chatbot_user_email')
+    localStorage.removeItem('chatbot_user_type')
+    setIsLoggedIn(false)
   }, [])
 
   // Rotate discount messages
@@ -80,34 +130,82 @@ export default function Chatbot() {
     return () => clearInterval(interval)
   }, [])
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
-  }
-
-  const handleEmailSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!emailInput.trim()) {
-      setEmailError('Please enter your email address')
-      return
-    }
-
-    if (!validateEmail(emailInput)) {
-      setEmailError('Please enter a valid email address')
-      return
-    }
-
-    localStorage.setItem('chatbot_user_email', emailInput)
-    setUserEmail(emailInput)
+  const handleDemoUserSelect = (demoUser: typeof DEMO_USERS[0]) => {
+    localStorage.setItem('chatbot_user_email', demoUser.email)
+    localStorage.setItem('chatbot_user_type', demoUser.type)
+    setUserEmail(demoUser.email)
+    setUserType(demoUser.type)
     setIsLoggedIn(true)
     setEmailError('')
+  }
+
+  const handleHotelSelect = (hotel: Hotel) => {
+    // User selected a hotel from carousel, show booking form
+    const botMessage: Message = {
+      id: Date.now().toString(),
+      text: `Great choice! ${hotel.name} is a wonderful property. Please fill in your booking details:`,
+      sender: 'bot',
+      timestamp: new Date(),
+      type: 'text'
+    }
+
+    const formMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      sender: 'bot',
+      timestamp: new Date(),
+      type: 'booking_form',
+      selectedHotel: { id: hotel.id, name: hotel.name }
+    }
+
+    setMessages(prev => [...prev, botMessage, formMessage])
+  }
+
+  const handleBookingFormSubmit = (data: BookingFormData) => {
+    // Generate pre-filled reservation URL
+    const baseURL = 'https://reservations.cinnamonhotels.com/'
+    const params = new URLSearchParams({
+      adult: data.adults.toString(),
+      arrive: data.checkIn,
+      depart: data.checkOut,
+      hotel: data.hotel,
+      child: data.children.toString(),
+      currency: 'USD',
+      rooms: data.rooms.toString(),
+      chain: '31106',
+      level: 'chain',
+      locale: 'en-US',
+      productcurrency: 'USD'
+    })
+
+    if (data.specialCode) {
+      params.append('promo', data.specialCode)
+    }
+
+    const reservationURL = `${baseURL}?${params.toString()}`
+
+    // Add bot response with clickable button
+    const botMessage: Message = {
+      id: Date.now().toString(),
+      text: `Perfect! I've prepared your reservation for ${data.hotelName}.\n\nCheck-in: ${data.checkIn}\nCheck-out: ${data.checkOut}\nGuests: ${data.adults} Adult${data.adults > 1 ? 's' : ''}${data.children > 0 ? `, ${data.children} Child${data.children > 1 ? 'ren' : ''}` : ''}\nRooms: ${data.rooms} Room${data.rooms > 1 ? 's' : ''}`,
+      sender: 'bot',
+      timestamp: new Date(),
+      type: 'text',
+      reservationURL: reservationURL
+    }
+
+    setMessages(prev => [...prev, botMessage])
   }
 
   const handleSendMessage = async (messageText?: string) => {
     const textToSend = messageText || inputValue.trim()
 
     if (!textToSend) return
+
+    // Collapse quick actions after first user message
+    if (!hasUserSentMessage) {
+      setHasUserSentMessage(true)
+      setIsQuickActionsCollapsed(true)
+    }
 
     // Add user message
     const userMessage: Message = {
@@ -121,16 +219,56 @@ export default function Chatbot() {
     setInputValue('')
     setIsLoading(true)
 
+    // Check if user is Type 1 (new booking) and wants to book
+    const messageLower = textToSend.toLowerCase()
+    const isBookingIntent = messageLower.includes('book') || messageLower.includes('reservation') || messageLower.includes('reserve')
+
+    if (userType === 'new_booking' && isBookingIntent) {
+      // Show booking form directly for Type 1 users
+      setTimeout(() => {
+        const botMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: 'Amazing! Please fill in your booking details below:',
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'text'
+        }
+
+        const formMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'booking_form'
+        }
+
+        setMessages(prev => [...prev, botMessage, formMessage])
+        setIsLoading(false)
+      }, 500)
+      return
+    }
+
     try {
       // Call Flask backend
       const response = await axios.post(`${API_BASE_URL}/api/chat`, {
-        message: textToSend
+        message: textToSend,
+        userType: userType
       })
 
       // Handle response based on type
       let botMessage: Message
 
-      if (response.data.type === 'structured') {
+      if (response.data.type === 'hotel_carousel') {
+        // Hotel carousel response
+        botMessage = {
+          id: (Date.now() + 1).toString(),
+          text: response.data.response,
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'hotel_carousel',
+          hotels: response.data.hotels,
+          isTyping: true
+        }
+      } else if (response.data.type === 'structured') {
         // Structured response with cards
         botMessage = {
           id: (Date.now() + 1).toString(),
@@ -147,7 +285,8 @@ export default function Chatbot() {
           sender: 'bot',
           timestamp: new Date(),
           type: 'text',
-          showMapButton: response.data.show_map_button || false
+          showMapButton: response.data.show_map_button || false,
+          isTyping: true
         }
       }
 
@@ -240,12 +379,28 @@ export default function Chatbot() {
         </div>
       )}
 
+      {/* Google Map Panel */}
+      <GoogleMapPanel isVisible={isGoogleMapOpen} onClose={() => setIsGoogleMapOpen(false)} />
+
       {/* Chatbot Window */}
       {isOpen && (
-        <div className={styles.chatWindow}>
+        <div className={`${styles.chatWindow} ${isMinimized ? styles.minimized : ''} ${isMaximized ? styles.maximized : ''} ${isGoogleMapOpen ? styles.withMap : ''}`}>
           {/* Header */}
           <div className={styles.chatHeader}>
             <div className={styles.headerContent}>
+              {isLoggedIn && hasUserSentMessage && (
+                <button
+                  className={styles.headerMenuButton}
+                  onClick={() => setIsQuickActionsCollapsed(!isQuickActionsCollapsed)}
+                  aria-label="Toggle menu"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                  </svg>
+                </button>
+              )}
               <div className={styles.logoContainer}>
                 <img
                   src="/logo.png"
@@ -254,16 +409,58 @@ export default function Chatbot() {
                 />
               </div>
             </div>
-            <button
-              className={styles.closeButton}
-              onClick={() => setIsOpen(false)}
-              aria-label="Close chat"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
+            <div className={styles.headerActions}>
+              <button
+                className={styles.minimizeButton}
+                onClick={() => {
+                  setIsMinimized(!isMinimized)
+                  setIsMaximized(false)
+                }}
+                aria-label={isMinimized ? "Restore chat" : "Minimize chat"}
+              >
+                {isMinimized ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="18 15 12 9 6 15"></polyline>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                )}
+              </button>
+              <button
+                className={styles.maximizeButton}
+                onClick={() => {
+                  setIsMaximized(!isMaximized)
+                  setIsMinimized(false)
+                }}
+                aria-label={isMaximized ? "Restore chat" : "Maximize chat"}
+              >
+                {isMaximized ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="4 14 10 14 10 20"></polyline>
+                    <polyline points="20 10 14 10 14 4"></polyline>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <polyline points="9 21 3 21 3 15"></polyline>
+                    <line x1="21" y1="3" x2="14" y2="10"></line>
+                    <line x1="3" y1="21" x2="10" y2="14"></line>
+                  </svg>
+                )}
+              </button>
+              <button
+                className={styles.closeButton}
+                onClick={() => setIsOpen(false)}
+                aria-label="Close chat"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Login or Chat Content */}
@@ -274,45 +471,66 @@ export default function Chatbot() {
                   <img src="/ayu.jpg" alt="Concierge" />
                 </div>
                 <h2 className={styles.loginTitle}>Welcome!</h2>
-                <p className={styles.loginSubtitle}>Please enter your email to start chatting</p>
+                <p className={styles.loginSubtitle}>Sign in to start chatting with us</p>
 
-                <form onSubmit={handleEmailSubmit} className={styles.loginFormChat}>
-                  <input
-                    type="email"
-                    value={emailInput}
-                    onChange={(e) => {
-                      setEmailInput(e.target.value)
-                      setEmailError('')
-                    }}
-                    placeholder="Enter your email"
-                    className={styles.loginInput}
-                    autoFocus
-                  />
-                  {emailError && <p className={styles.loginError}>{emailError}</p>}
-                  <button type="submit" className={styles.loginSubmit}>
-                    Start Chat
-                  </button>
-                </form>
+                <div className={styles.userTypeSelection}>
+                  {DEMO_USERS.map((user) => (
+                    <button
+                      key={user.type}
+                      className={styles.userTypeCard}
+                      onClick={() => handleDemoUserSelect(user)}
+                    >
+                      <div className={styles.userTypeIcon}>👤</div>
+                      <div className={styles.userTypeEmail}>{user.email}</div>
+                    </button>
+                  ))}
+                </div>
 
                 <p className={styles.loginPrivacy}>
-                  We respect your privacy. Your email is only used for this chat session.
+                  We respect your privacy. Your information is secure with us.
                 </p>
               </div>
             </div>
           ) : (
             <>
-              {/* Quick Actions */}
-              <div className={styles.quickActions}>
-                {QUICK_ACTIONS.map(action => (
+              {/* Quick Actions - Collapsible */}
+              <div className={`${styles.quickActions} ${isQuickActionsCollapsed ? styles.collapsed : ''}`}>
+                {isQuickActionsCollapsed && (
                   <button
-                    key={action.id}
-                    className={styles.quickActionButton}
-                    onClick={() => handleQuickAction(action.id)}
-                    disabled={isLoading}
+                    className={styles.hamburgerButton}
+                    onClick={() => setIsQuickActionsCollapsed(false)}
+                    aria-label="Show quick actions"
                   >
-                    <img src={action.icon} alt={action.label} className={styles.quickActionIcon} />
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="3" y1="12" x2="21" y2="12"></line>
+                      <line x1="3" y1="6" x2="21" y2="6"></line>
+                      <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
                   </button>
-                ))}
+                )}
+                {!isQuickActionsCollapsed && (
+                  <>
+                    {QUICK_ACTIONS.map(action => (
+                      <button
+                        key={action.id}
+                        className={styles.quickActionButton}
+                        onClick={() => handleQuickAction(action.id)}
+                        disabled={isLoading}
+                      >
+                        <img src={action.icon} alt={action.label} className={styles.quickActionIcon} />
+                      </button>
+                    ))}
+                    <button
+                      className={styles.collapseButton}
+                      onClick={() => setIsQuickActionsCollapsed(true)}
+                      aria-label="Hide quick actions"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="18 15 12 9 6 15"></polyline>
+                      </svg>
+                    </button>
+                  </>
+                )}
               </div>
               {/* Messages */}
               <div className={styles.messagesContainer}>
@@ -332,17 +550,48 @@ export default function Chatbot() {
                   </div>
                 )}
                 <div className={styles.messageBubble}>
-                  {message.type === 'structured' && message.structuredData ? (
+                  {message.type === 'booking_form' ? (
+                    <BookingForm onSubmit={handleBookingFormSubmit} selectedHotel={message.selectedHotel} />
+                  ) : message.type === 'hotel_carousel' && message.hotels ? (
+                    <>
+                      {message.text && (
+                        <p className={styles.messageText}>
+                          {message.isTyping && !message.typingComplete ? (
+                            <TypingText text={message.text} onComplete={() => handleTypingComplete(message.id)} />
+                          ) : (
+                            message.text
+                          )}
+                        </p>
+                      )}
+                      {(!message.isTyping || message.typingComplete) && (
+                        <HotelCarousel hotels={message.hotels} onHotelSelect={handleHotelSelect} />
+                      )}
+                    </>
+                  ) : message.type === 'structured' && message.structuredData ? (
                     <StructuredResponse data={message.structuredData} />
                   ) : (
                     <>
-                      <p className={styles.messageText}>{message.text}</p>
-                      {message.showMapButton && (
+                      <p className={styles.messageText}>
+                        {message.isTyping && !message.typingComplete && message.text ? (
+                          <TypingText text={message.text} onComplete={() => handleTypingComplete(message.id)} />
+                        ) : (
+                          message.text
+                        )}
+                      </p>
+                      {(!message.isTyping || message.typingComplete) && message.reservationURL && (
+                        <button
+                          className={styles.reservationButton}
+                          onClick={() => window.open(message.reservationURL, '_blank')}
+                        >
+                          Complete Your Booking
+                        </button>
+                      )}
+                      {(!message.isTyping || message.typingComplete) && message.showMapButton && (
                         <button
                           className={styles.mapButton}
-                          onClick={() => setIsMapOpen(true)}
+                          onClick={() => setIsGoogleMapOpen(true)}
                         >
-                          🗺️ Open Map
+                          Open Map
                         </button>
                       )}
                     </>

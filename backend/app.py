@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from simple_responses import get_response, DEFAULT_GREETINGS
+from user_flows import get_user_flow_response
 import random
 from datetime import datetime
 
@@ -10,9 +11,10 @@ CORS(app)
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    """Handle chat messages with simple response mapping"""
+    """Handle chat messages with user flow based routing"""
     data = request.json
     user_message = data.get('message', '')
+    user_type = data.get('userType', '')  # Get user type from frontend
 
     if not user_message:
         return jsonify({'error': 'No message provided'}), 400
@@ -27,25 +29,29 @@ def chat():
                    .replace('�', "'"))      # Replacement character (encoding error)
 
     print(f"DEBUG: User message received: {repr(user_message)}")
+    print(f"DEBUG: User type: {user_type}")
 
-    # Check if it's a greeting
-    if any(word in user_message.lower() for word in ['hi', 'hello', 'hey', 'greetings']):
-        response_text = random.choice(DEFAULT_GREETINGS)
-        return jsonify({
-            'type': 'text',
-            'response': response_text,
-            'timestamp': datetime.now().isoformat()
-        })
+    # Use user flow handler if user type is specified
+    if user_type:
+        response_data = get_user_flow_response(user_message, user_type)
+    else:
+        # Fallback to simple response mapping
+        response_data = get_response(user_message)
 
-    # Get simple response
-    response_data = get_response(user_message)
     print(f"DEBUG: Response data: {response_data}")
 
-    # Handle structured vs text responses
-    if response_data.get('type') == 'structured':
+    # Handle different response types
+    if response_data.get('type') == 'hotel_carousel':
+        return jsonify({
+            'type': 'hotel_carousel',
+            'response': response_data.get('response', ''),
+            'hotels': response_data.get('hotels', []),
+            'timestamp': datetime.now().isoformat()
+        })
+    elif response_data.get('type') == 'structured':
         return jsonify({
             'type': 'structured',
-            'data': response_data,
+            'data': response_data.get('data', response_data),
             'timestamp': datetime.now().isoformat()
         })
     else:
@@ -87,5 +93,5 @@ def health():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)
 

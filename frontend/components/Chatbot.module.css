@@ -114,6 +114,42 @@
   overflow: hidden;
   z-index: 1000;
   animation: slideUp 0.3s ease-out;
+  transition: height 0.3s ease, border-radius 0.3s ease;
+}
+
+.chatWindow.minimized {
+  height: 64px;
+  border-radius: 32px;
+}
+
+.chatWindow.minimized > *:not(.chatHeader) {
+  display: none;
+}
+
+.chatWindow.maximized {
+  width: 100vw;
+  height: 100vh;
+  bottom: 0;
+  right: 0;
+  border-radius: 0;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* Side-by-side layout when map is open */
+.chatWindow.withMap {
+  right: 0;
+  width: 60%;
+  left: auto;
+  height: 100vh;
+  bottom: 0;
+  border-radius: 0;
+}
+
+@media (min-width: 768px) {
+  .chatWindow.withMap {
+    width: 50%;
+  }
 }
 
 @keyframes slideUp {
@@ -161,6 +197,50 @@
   filter: brightness(0) invert(1);
 }
 
+.headerActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.minimizeButton {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.minimizeButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.maximizeButton {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.maximizeButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 .closeButton {
   background: rgba(255, 255, 255, 0.2);
   border: none;
@@ -189,6 +269,51 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   justify-content: space-evenly;
   overflow: visible;
+  transition: all 0.3s ease;
+}
+
+.quickActions.collapsed {
+  padding: 8px 12px;
+  justify-content: center;
+}
+
+.hamburgerButton {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.hamburgerButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.collapseButton {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  align-self: center;
+}
+
+.collapseButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
 }
 
 .quickActionButton {
@@ -316,6 +441,10 @@
   position: relative;
 }
 
+.messageBubble:has(form) {
+  padding: 12px 14px;
+}
+
 .userMessage .messageBubble {
   background: #6B2C91;
   color: white;
@@ -357,6 +486,38 @@
 
 .botMessage .messageText {
   color: #333333;
+}
+
+/* Reservation Button */
+.reservationButton {
+  margin-top: 14px;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, #6B2C91 0%, #8B3FB8 100%);
+  color: white;
+  border: none;
+  border-radius: 25px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: var(--font-poppins), sans-serif;
+  box-shadow: 0 4px 12px rgba(107, 44, 145, 0.4);
+  width: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reservationButton:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(107, 44, 145, 0.5);
+}
+
+.reservationButton:active {
+  transform: translateY(-1px);
 }
 
 /* Map Button */
@@ -634,4 +795,57 @@
   margin: 0;
   line-height: 1.5;
   font-family: var(--font-inter), sans-serif;
+}
+
+/* User Type Selection */
+.userTypeSelection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.userTypeCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: var(--font-inter), sans-serif;
+  text-align: left;
+}
+
+.userTypeCard:hover {
+  border-color: #6B2C91;
+  background: #f9f5fc;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(107, 44, 145, 0.15);
+}
+
+.userTypeCard:active {
+  transform: translateY(0);
+}
+
+.userTypeIcon {
+  font-size: 26px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0e7f5 0%, #e8d9f2 100%);
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid #dcc8eb;
+}
+
+.userTypeEmail {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+  flex: 1;
 }

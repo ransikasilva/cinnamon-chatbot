@@ -17,6 +17,7 @@ interface HotelCardProps {
     type: string
     price: number
     availability: string
+    image?: string
   }
   nights?: number
   totalCost?: number
@@ -26,6 +27,12 @@ interface HotelCardProps {
 export default function HotelCard({ hotel, room, nights, totalCost, onClick }: HotelCardProps) {
   return (
     <div className={styles.hotelCard} onClick={onClick}>
+      {room?.image && (
+        <div className={styles.roomImageContainer}>
+          <img src={room.image} alt={room.type} className={styles.roomImage} />
+        </div>
+      )}
+
       <div className={styles.hotelHeader}>
         <div className={styles.hotelInfo}>
           <h3 className={styles.hotelName}>{hotel.name}</h3>

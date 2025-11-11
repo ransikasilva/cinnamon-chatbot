@@ -27,7 +27,8 @@ SEA_VIEW_RESPONSES = {
                 "room": {
                     "type": "Deluxe Lake View Room",
                     "price": 180,
-                    "availability": "Available"
+                    "availability": "Available",
+                    "image": "/lakeside.jpg"
                 },
                 "nights": 3,
                 "total": 540
@@ -45,7 +46,8 @@ SEA_VIEW_RESPONSES = {
                 "room": {
                     "type": "Superior Ocean View Room",
                     "price": 210,
-                    "availability": "Available"
+                    "availability": "Available",
+                    "image": "/ocean-view.jpg"
                 },
                 "nights": 3,
                 "total": 630

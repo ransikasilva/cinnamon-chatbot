@@ -56,7 +56,7 @@ const QUICK_ACTIONS = [
   { id: 'info', label: 'Info', icon: '/info.png' },
 ]
 
-const API_BASE_URL = 'http://localhost:5001'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
 
 const GREETING_MESSAGE = "AYUBOWAN! I'm Maya. How can I assist you?"
 

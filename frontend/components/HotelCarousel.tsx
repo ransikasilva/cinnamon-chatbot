@@ -7,9 +7,9 @@ interface Hotel {
   id: string
   name: string
   location: string
-  image: string
-  description: string
-  highlights: string[]
+  image?: string
+  description?: string
+  highlights?: string[]
 }
 
 interface HotelCarouselProps {
@@ -84,7 +84,7 @@ export default function HotelCarousel({ hotels = HOTELS_DATA, onHotelSelect }: H
         <div className={styles.hotelCard}>
           <div className={styles.imageContainer}>
             <img
-              src={currentHotel.image}
+              src={currentHotel.image || '/placeholder-hotel.jpg'}
               alt={currentHotel.name}
               className={styles.hotelImage}
               onError={(e) => {
@@ -98,10 +98,10 @@ export default function HotelCarousel({ hotels = HOTELS_DATA, onHotelSelect }: H
 
           <div className={styles.cardContent}>
             <h3 className={styles.hotelName}>{currentHotel.name}</h3>
-            <p className={styles.hotelDescription}>{currentHotel.description}</p>
+            <p className={styles.hotelDescription}>{currentHotel.description || ''}</p>
 
             <div className={styles.highlights}>
-              {currentHotel.highlights.map((highlight, idx) => (
+              {currentHotel.highlights?.map((highlight, idx) => (
                 <span key={idx} className={styles.highlightBadge}>
                   {highlight}
                 </span>

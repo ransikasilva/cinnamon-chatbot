@@ -88,6 +88,20 @@ export default function GoogleMapPanel({ isVisible, onClose }: GoogleMapPanelPro
   const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([])
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [selectedHotel, setSelectedHotel] = useState<string>('')
+
+  const handleHotelSelect = (hotelId: string) => {
+    const hotelIndex = HOTELS.findIndex(h => h.id === hotelId)
+    if (hotelIndex !== -1 && googleMapRef.current && markersRef.current[hotelIndex]) {
+      const hotel = HOTELS[hotelIndex]
+      // Pan to hotel location
+      googleMapRef.current.panTo({ lat: hotel.lat, lng: hotel.lng })
+      googleMapRef.current.setZoom(14)
+      // Trigger marker click to show info
+      google.maps.event.trigger(markersRef.current[hotelIndex], 'click')
+    }
+    setSelectedHotel(hotelId)
+  }
 
   useEffect(() => {
     // Load Google Maps script
@@ -105,7 +119,8 @@ export default function GoogleMapPanel({ isVisible, onClose }: GoogleMapPanelPro
       }
 
       const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyBlAOzYVavkFKdyByg8DOPJXdwYd-dsJMM&libraries=places,marker&v=weekly`
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,marker&v=weekly`
       script.async = true
       script.defer = true
       script.onload = () => setIsLoaded(true)
@@ -208,6 +223,14 @@ export default function GoogleMapPanel({ isVisible, onClose }: GoogleMapPanelPro
                         <h3 class="${styles.infoTitle}">${hotel.name}</h3>
                         ${place.rating ? `<div class="${styles.infoRating}">⭐ ${place.rating}</div>` : ''}
                         <p class="${styles.infoAddress}">${place.formatted_address || ''}</p>
+                        <a
+                          href="https://www.google.com/maps/dir/?api=1&destination=${hotel.lat},${hotel.lng}"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="${styles.directionsButton}"
+                        >
+                          Get Directions
+                        </a>
                       </div>
                     </div>
                   `
@@ -272,6 +295,23 @@ export default function GoogleMapPanel({ isVisible, onClose }: GoogleMapPanelPro
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
+
+      {/* Hotel Search Dropdown */}
+      <div className={styles.searchContainer}>
+        <select
+          className={styles.hotelDropdown}
+          value={selectedHotel}
+          onChange={(e) => handleHotelSelect(e.target.value)}
+        >
+          <option value="">Select a hotel to view</option>
+          {HOTELS.map((hotel) => (
+            <option key={hotel.id} value={hotel.id}>
+              {hotel.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div ref={mapRef} className={styles.map}></div>
     </div>
   )

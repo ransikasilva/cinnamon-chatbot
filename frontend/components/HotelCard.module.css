@@ -11,7 +11,7 @@
 
 .hotelCard:hover {
   box-shadow: 0 4px 16px rgba(107, 44, 145, 0.15);
-  border-color: #6B2C91;
+  border-color: #5A3082;
   transform: translateY(-2px);
 }
 
@@ -61,7 +61,7 @@
 }
 
 .locationIcon {
-  color: #6B2C91;
+  color: #5A3082;
   font-size: 14px;
 }
 
@@ -168,7 +168,7 @@
 
 .durationLabel {
   font-size: 13px;
-  color: #6B2C91;
+  color: #5A3082;
   font-weight: 600;
   font-family: var(--font-inter), sans-serif;
 }

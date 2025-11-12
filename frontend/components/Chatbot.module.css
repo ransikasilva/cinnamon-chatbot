@@ -6,54 +6,45 @@
   z-index: 1000;
 }
 
-/* Discount Bubble */
-.discountBubble {
+/* Greeting Bubble positioned at 315 degrees (upper-left of button) */
+.greetingBubble {
   position: absolute;
-  bottom: 55px;
-  right: 55px;
-  background: linear-gradient(135deg, #6B2C91 0%, #8B3FB8 100%);
+  bottom: 50px;
+  right: 80px;
+  background: #7A4BA3;
   color: white;
-  padding: 12px 18px;
-  border-radius: 20px;
-  box-shadow: 0 4px 16px rgba(107, 44, 145, 0.4);
+  padding: 14px 18px;
+  border-radius: 18px;
+  box-shadow: 0 4px 16px rgba(90, 48, 130, 0.4);
   font-size: 14px;
   font-weight: 600;
   font-family: var(--font-poppins), sans-serif;
-  white-space: nowrap;
-  max-width: 250px;
+  max-width: 220px;
   animation: bubbleSlideFromLeft 0.5s ease-out;
-  display: inline-block;
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
-.discountText {
+.greetingText {
   position: relative;
   z-index: 2;
   display: inline-block;
-  animation: revealText 2s steps(40, end) forwards;
-  max-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
 }
 
-@keyframes revealText {
-  from {
-    max-width: 0;
-  }
-  to {
-    max-width: 100%;
-  }
-}
-
-.discountBubble::after {
+/* Simple speech bubble tail pointing right */
+.greetingBubble::after {
   content: '';
   position: absolute;
-  bottom: -6px;
-  right: 10px;
-  width: 14px;
-  height: 14px;
-  background: #8B3FB8;
-  transform: rotate(45deg);
-  z-index: -1;
+  bottom: 8px;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border: 8px solid transparent;
+  border-left-color: #7A4BA3;
+  border-right: 0;
+  border-bottom: 0;
+  margin-top: -4px;
 }
 
 @keyframes bubbleSlideFromLeft {
@@ -73,9 +64,9 @@
   height: 70px;
   border-radius: 50%;
   background: white;
-  border: 3px solid #6B2C91;
+  border: none;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(107, 44, 145, 0.4);
+  box-shadow: 0 4px 20px rgba(90, 48, 130, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -85,9 +76,9 @@
 }
 
 .chatButtonImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  width: 120%;
+  height: 120%;
+  object-fit: contain;
 }
 
 .chatButton:hover {
@@ -165,7 +156,7 @@
 
 /* Header */
 .chatHeader {
-  background: #6B2C91;
+  background: #5A3082;
   color: white;
   padding: 12px 16px;
   display: flex;
@@ -179,6 +170,31 @@
   display: flex;
   align-items: center;
   flex: 1;
+  gap: 8px;
+}
+
+.headerMenuButton {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.headerMenuButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.headerMenuButton:active {
+  transform: scale(0.95);
 }
 
 .logoContainer {
@@ -186,7 +202,6 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding-left: 8px;
 }
 
 .logo {
@@ -265,7 +280,7 @@
   display: flex;
   gap: 8px;
   padding: 18px 12px;
-  background: #6B2C91;
+  background: #5A3082;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   justify-content: space-evenly;
   overflow: visible;
@@ -354,7 +369,7 @@
 .quickActionLabel {
   font-size: 8px;
   font-weight: 700;
-  color: #6B2C91;
+  color: #5A3082;
   text-align: center;
   line-height: 1;
   letter-spacing: 0.4px;
@@ -392,7 +407,7 @@
 }
 
 .messageWrapper:has(.messageBubble > div) {
-  max-width: 95%;
+  max-width: 85%;
 }
 
 @keyframes fadeIn {
@@ -446,7 +461,7 @@
 }
 
 .userMessage .messageBubble {
-  background: #6B2C91;
+  background: #5A3082;
   color: white;
   border-radius: 20px 20px 4px 20px;
 }
@@ -491,12 +506,12 @@
 /* Reservation Button */
 .reservationButton {
   margin-top: 14px;
-  padding: 14px 24px;
-  background: linear-gradient(135deg, #6B2C91 0%, #8B3FB8 100%);
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #5A3082 0%, #7A4BA3 100%);
   color: white;
   border: none;
-  border-radius: 25px;
-  font-size: 15px;
+  border-radius: 25px 0 25px 0;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -520,14 +535,45 @@
   transform: translateY(-1px);
 }
 
+/* Confirm Button */
+.confirmButton {
+  margin-top: 12px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #5A3082 0%, #7A4BA3 100%);
+  color: white;
+  border: none;
+  border-radius: 20px 0 20px 0;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  font-family: var(--font-poppins), sans-serif;
+  box-shadow: 0 3px 10px rgba(90, 48, 130, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.confirmButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 16px rgba(90, 48, 130, 0.5);
+}
+
+.confirmButton:active {
+  transform: translateY(0);
+}
+
 /* Map Button */
 .mapButton {
   margin-top: 12px;
   padding: 10px 20px;
-  background: #6B2C91;
+  background: #5A3082;
   color: white;
   border: none;
-  border-radius: 20px;
+  border-radius: 20px 0 20px 0;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -540,7 +586,7 @@
 }
 
 .mapButton:hover {
-  background: #8B3FB8;
+  background: #7A4BA3;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(107, 44, 145, 0.4);
 }
@@ -560,7 +606,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #6B2C91;
+  background: #5A3082;
   animation: typing 1.4s infinite;
 }
 
@@ -611,7 +657,7 @@
 }
 
 .input:focus {
-  border-color: #6B2C91;
+  border-color: #5A3082;
 }
 
 .input:disabled {
@@ -629,7 +675,7 @@
   border-radius: 50%;
   background: transparent;
   border: none;
-  color: #6B2C91;
+  color: #5A3082;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -639,7 +685,7 @@
 }
 
 .sendButton:hover:not(:disabled) {
-  color: #8B3FB8;
+  color: #7A4BA3;
   transform: translateY(-50%) scale(1.1);
 }
 
@@ -709,7 +755,7 @@
   margin: 0 auto 20px;
   border-radius: 50%;
   overflow: hidden;
-  border: 3px solid #6B2C91;
+  border: 3px solid #5A3082;
   box-shadow: 0 4px 12px rgba(107, 44, 145, 0.3);
 }
 
@@ -722,7 +768,7 @@
 .loginTitle {
   font-size: 24px;
   font-weight: 700;
-  color: #6B2C91;
+  color: #5A3082;
   margin: 0 0 8px 0;
   font-family: var(--font-poppins), sans-serif;
 }
@@ -752,7 +798,7 @@
 }
 
 .loginInput:focus {
-  border-color: #6B2C91;
+  border-color: #5A3082;
   box-shadow: 0 0 0 3px rgba(107, 44, 145, 0.1);
 }
 
@@ -767,7 +813,7 @@
 .loginSubmit {
   width: 100%;
   padding: 12px;
-  background: #6B2C91;
+  background: #5A3082;
   color: white;
   border: none;
   border-radius: 8px;
@@ -780,7 +826,7 @@
 }
 
 .loginSubmit:hover {
-  background: #8B3FB8;
+  background: #7A4BA3;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(107, 44, 145, 0.4);
 }
@@ -820,7 +866,7 @@
 }
 
 .userTypeCard:hover {
-  border-color: #6B2C91;
+  border-color: #5A3082;
   background: #f9f5fc;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(107, 44, 145, 0.15);
@@ -848,4 +894,58 @@
   color: #333;
   font-weight: 500;
   flex: 1;
+}
+
+/* Additional Message */
+.additionalMessage {
+  margin: 12px 0 0 0;
+  padding: 12px 14px;
+  background: #F0F7FF;
+  border-left: 3px solid #5A3082;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #333;
+  font-family: var(--font-inter), sans-serif;
+  line-height: 1.5;
+}
+
+/* Larger text and elements for maximized view */
+.chatWindow.maximized .messageText {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.chatWindow.maximized .messageBubble {
+  padding: 18px 24px;
+}
+
+.chatWindow.maximized .messageAvatar {
+  width: 48px;
+  height: 48px;
+}
+
+.chatWindow.maximized .reservationButton,
+.chatWindow.maximized .mapButton,
+.chatWindow.maximized .confirmButton {
+  font-size: 16px;
+  padding: 16px 28px;
+}
+
+.chatWindow.maximized .messagesContainer {
+  padding: 32px;
+  gap: 20px;
+}
+
+.chatWindow.maximized .inputContainer {
+  padding: 20px 24px;
+}
+
+.chatWindow.maximized .messageInput {
+  font-size: 16px;
+  padding: 16px 20px;
+}
+
+.chatWindow.maximized .sendButton {
+  width: 48px;
+  height: 48px;
 }

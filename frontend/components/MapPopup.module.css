@@ -101,7 +101,7 @@
 }
 
 .header {
-  background: #6B2C91;
+  background: #5A3082;
   padding: 20px;
   display: flex;
   align-items: center;
@@ -150,7 +150,7 @@
   background: #f9f5fc;
   padding: 20px;
   border-radius: 12px;
-  border-left: 4px solid #6B2C91;
+  border-left: 4px solid #5A3082;
 }
 
 .section {
@@ -160,10 +160,10 @@
 .sectionTitle {
   font-size: 18px;
   font-weight: 700;
-  color: #6B2C91;
+  color: #5A3082;
   margin: 0 0 20px 0;
   font-family: var(--font-poppins), sans-serif;
-  border-bottom: 2px solid #6B2C91;
+  border-bottom: 2px solid #5A3082;
   padding-bottom: 8px;
 }
 
@@ -195,7 +195,7 @@
   content: '•';
   position: absolute;
   left: 0;
-  color: #6B2C91;
+  color: #5A3082;
   font-weight: bold;
   font-size: 18px;
 }

@@ -48,6 +48,15 @@ def chat():
             'hotels': response_data.get('hotels', []),
             'timestamp': datetime.now().isoformat()
         })
+    elif response_data.get('type') == 'booking_details':
+        return jsonify({
+            'type': 'booking_details',
+            'response': response_data.get('response', ''),
+            'booking_data': response_data.get('booking_data', {}),
+            'show_confirmation_button': response_data.get('show_confirmation_button', False),
+            'additional_message': response_data.get('additional_message', ''),
+            'timestamp': datetime.now().isoformat()
+        })
     elif response_data.get('type') == 'structured':
         return jsonify({
             'type': 'structured',
@@ -59,6 +68,8 @@ def chat():
             'type': 'text',
             'response': response_data.get('response', 'I apologize, I could not understand that.'),
             'show_map_button': response_data.get('show_map_button', False),
+            'show_confirmation_button': response_data.get('show_confirmation_button', False),
+            'reservation_url': response_data.get('reservation_url', None),
             'timestamp': datetime.now().isoformat()
         })
 

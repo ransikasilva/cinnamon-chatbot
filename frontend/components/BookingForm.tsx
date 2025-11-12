@@ -6,6 +6,7 @@ import styles from './BookingForm.module.css'
 interface BookingFormProps {
   onSubmit: (data: BookingFormData) => void
   selectedHotel?: { id: string; name: string }
+  isMaximized?: boolean
 }
 
 export interface BookingFormData {
@@ -22,7 +23,7 @@ export interface BookingFormData {
 // Only Cinnamon Grand for Type 1 users
 const CINNAMON_GRAND = { id: '42169', name: 'Cinnamon Grand Colombo' }
 
-export default function BookingForm({ onSubmit, selectedHotel }: BookingFormProps) {
+export default function BookingForm({ onSubmit, selectedHotel, isMaximized }: BookingFormProps) {
   // Use selectedHotel if provided, otherwise default to Cinnamon Grand
   const hotel = selectedHotel || CINNAMON_GRAND
 
@@ -57,8 +58,8 @@ export default function BookingForm({ onSubmit, selectedHotel }: BookingFormProp
   const today = new Date().toISOString().split('T')[0]
 
   return (
-    <form className={styles.bookingForm} onSubmit={handleSubmit}>
-      <div className={styles.formTitle}>Booking for {CINNAMON_GRAND.name}</div>
+    <form className={`${styles.bookingForm} ${isMaximized ? styles.maximized : ''}`} onSubmit={handleSubmit}>
+      <div className={styles.formTitle}>Complete Your Booking</div>
 
       {/* Check-in Date */}
       <div className={styles.formGroup}>

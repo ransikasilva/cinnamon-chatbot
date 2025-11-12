@@ -1,23 +1,36 @@
 .bookingForm {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 0;
+  gap: 8px;
+  padding: 0 12px;
   background: transparent;
   width: 100%;
   max-width: 100%;
+  box-sizing: border-box;
+  animation: slideInUp 0.4s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .formTitle {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  color: #6B2C91;
+  color: #5A3082;
   font-family: var(--font-poppins), sans-serif;
   text-align: center;
   margin-bottom: 0;
-  padding: 6px 10px;
+  padding: 8px 12px;
   background: #f9f5fc;
-  border-radius: 5px;
+  border-radius: 6px;
 }
 
 .formGroup {
@@ -27,7 +40,7 @@
 }
 
 .label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   color: #666;
   font-family: var(--font-inter), sans-serif;
@@ -38,10 +51,10 @@
 /* Date Inputs - Compact */
 .dateInput {
   width: 100%;
-  padding: 6px 8px;
-  font-size: 11px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+  padding: 8px 10px;
+  font-size: 13px;
+  border: 2px solid #E0E0E0;
+  border-radius: 6px;
   outline: none;
   transition: all 0.2s ease;
   font-family: var(--font-inter), sans-serif;
@@ -50,24 +63,35 @@
   font-weight: 500;
   color: #333;
   box-sizing: border-box;
+  position: relative;
+}
+
+.dateInput:hover {
+  border-color: #5A3082;
 }
 
 .dateInput:focus {
-  border-color: #6B2C91;
-  box-shadow: 0 0 0 2px rgba(107, 44, 145, 0.08);
+  border-color: #5A3082;
+  box-shadow: 0 0 0 3px rgba(90, 48, 130, 0.1);
 }
 
 .dateInput::-webkit-calendar-picker-indicator {
   cursor: pointer;
-  width: 14px;
-  height: 14px;
-  opacity: 0.5;
+  width: 16px;
+  height: 16px;
+  opacity: 0.6;
+  filter: invert(27%) sepia(51%) saturate(2094%) hue-rotate(265deg) brightness(40%) contrast(90%);
+  transition: opacity 0.2s ease;
 }
 
-/* Guests - Vertical for small screens */
+.dateInput::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Guests - Always vertical by default */
 .guestsRow {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 5px;
 }
 
@@ -76,11 +100,12 @@
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
+  width: 100%;
 }
 
 .guestLabel {
-  font-size: 9px;
+  font-size: 10px;
   color: #666;
   font-family: var(--font-inter), sans-serif;
   font-weight: 600;
@@ -88,6 +113,7 @@
   letter-spacing: 0.2px;
   flex: 1;
   text-align: left;
+  min-width: 0;
 }
 
 .counter {
@@ -96,20 +122,21 @@
   justify-content: space-between;
   background: white;
   border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 2px;
-  gap: 4px;
-  min-width: 80px;
+  border-radius: 5px;
+  padding: 3px;
+  gap: 5px;
+  min-width: 85px;
+  flex-shrink: 0;
 }
 
 .counterBtn {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   background: white;
   border: none;
-  border-radius: 3px;
-  color: #6B2C91;
-  font-size: 12px;
+  border-radius: 4px;
+  color: #5A3082;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -120,7 +147,7 @@
 }
 
 .counterBtn:hover {
-  background: #6B2C91;
+  background: #5A3082;
   color: white;
 }
 
@@ -129,10 +156,10 @@
 }
 
 .counterValue {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   color: #333;
-  min-width: 16px;
+  min-width: 18px;
   text-align: center;
   font-family: var(--font-poppins), sans-serif;
 }
@@ -140,10 +167,10 @@
 /* Text Input - Compact */
 .textInput {
   width: 100%;
-  padding: 6px 8px;
-  font-size: 11px;
+  padding: 8px 10px;
+  font-size: 13px;
   border: 1px solid #ddd;
-  border-radius: 5px;
+  border-radius: 6px;
   outline: none;
   transition: all 0.2s ease;
   font-family: var(--font-inter), sans-serif;
@@ -153,7 +180,7 @@
 }
 
 .textInput:focus {
-  border-color: #6B2C91;
+  border-color: #5A3082;
   box-shadow: 0 0 0 2px rgba(107, 44, 145, 0.08);
 }
 
@@ -166,18 +193,18 @@
 /* Submit Button - Compact */
 .submitBtn {
   width: 100%;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #6B2C91 0%, #8B3FB8 100%);
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #5A3082 0%, #7A4BA3 100%);
   color: white;
   border: none;
-  border-radius: 6px;
-  font-size: 11px;
+  border-radius: 20px 0 20px 0;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: var(--font-poppins), sans-serif;
   box-shadow: 0 2px 8px rgba(107, 44, 145, 0.25);
-  margin-top: 2px;
+  margin-top: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -191,68 +218,109 @@
   transform: translateY(0);
 }
 
-/* Responsive for maximized view */
-@media (min-width: 768px) {
-  .bookingForm {
-    gap: 16px;
-  }
+/* Maximized view styles - applied via class */
+.bookingForm.maximized {
+  gap: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
 
-  .formTitle {
-    font-size: 18px;
-    padding: 16px 20px;
-  }
+.bookingForm.maximized .formTitle {
+  font-size: 20px;
+  padding: 18px 24px;
+}
 
-  .label {
-    font-size: 12px;
-  }
+.bookingForm.maximized .label {
+  font-size: 13px;
+}
 
-  .dateInput,
-  .textInput {
-    padding: 14px 16px;
-    font-size: 15px;
-    border-radius: 10px;
-  }
+.bookingForm.maximized .dateInput,
+.bookingForm.maximized .textInput {
+  padding: 16px 18px;
+  font-size: 16px;
+  border-radius: 10px;
+}
 
-  /* Horizontal layout for maximized */
-  .guestsRow {
-    flex-direction: row;
-    gap: 12px;
-  }
+/* Horizontal layout for maximized - use grid with 3 columns */
+.bookingForm.maximized .guestsRow {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
 
-  .guestControl {
-    flex: 1;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-  }
+.bookingForm.maximized .guestControl {
+  flex: 1;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
 
-  .guestLabel {
-    font-size: 11px;
-    text-align: center;
-  }
+.bookingForm.maximized .guestLabel {
+  font-size: 11px;
+  text-align: center;
+}
 
-  .counter {
-    padding: 4px;
-    gap: 6px;
-    border-radius: 8px;
-    min-width: auto;
-  }
+.bookingForm.maximized .counter {
+  padding: 4px;
+  gap: 6px;
+  border-radius: 8px;
+  min-width: auto;
+}
 
-  .counterBtn {
-    width: 32px;
-    height: 32px;
-    font-size: 18px;
-    border-radius: 6px;
-  }
+.bookingForm.maximized .counterBtn {
+  width: 32px;
+  height: 32px;
+  font-size: 18px;
+  border-radius: 6px;
+}
 
-  .counterValue {
-    font-size: 16px;
-    min-width: 28px;
-  }
+.bookingForm.maximized .counterValue {
+  font-size: 16px;
+  min-width: 28px;
+}
 
-  .submitBtn {
-    padding: 16px 24px;
-    font-size: 15px;
-    border-radius: 10px;
-  }
+.bookingForm.maximized .submitBtn {
+  padding: 18px 32px;
+  font-size: 16px;
+  border-radius: 10px;
+}
+
+.bookingForm.maximized .formGroup {
+  gap: 6px;
+}
+
+.bookingForm.maximized .guestsRow {
+  gap: 16px;
+}
+
+/* Calendar Popup Styling */
+.dateInput::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+.dateInput::-webkit-datetime-edit-text {
+  color: #999;
+  padding: 0 2px;
+}
+
+.dateInput::-webkit-datetime-edit-month-field,
+.dateInput::-webkit-datetime-edit-day-field,
+.dateInput::-webkit-datetime-edit-year-field {
+  color: #333;
+  font-weight: 600;
+}
+
+.dateInput::-webkit-datetime-edit-month-field:focus,
+.dateInput::-webkit-datetime-edit-day-field:focus,
+.dateInput::-webkit-datetime-edit-year-field:focus {
+  background: #F5F0FA;
+  color: #5A3082;
+  border-radius: 3px;
+  outline: none;
+}
+
+/* Selected date styling */
+.dateInput:valid {
+  color: #5A3082;
+  font-weight: 600;
 }

@@ -10,7 +10,7 @@
 
 .activityCard:hover {
   box-shadow: 0 4px 12px rgba(107, 44, 145, 0.12);
-  border-color: #8B3FB8;
+  border-color: #7A4BA3;
   transform: translateX(4px);
 }
 
@@ -33,7 +33,7 @@
 .price {
   font-size: 16px;
   font-weight: 700;
-  color: #6B2C91;
+  color: #5A3082;
   font-family: var(--font-poppins), sans-serif;
 }
 
@@ -53,6 +53,6 @@
 }
 
 .icon {
-  color: #8B3FB8;
+  color: #7A4BA3;
   font-size: 14px;
 }

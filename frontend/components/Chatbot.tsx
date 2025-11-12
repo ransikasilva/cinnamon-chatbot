@@ -9,6 +9,9 @@ import BookingForm, { BookingFormData } from './BookingForm'
 import GoogleMapPanel from './GoogleMapPanel'
 import HotelCarousel from './HotelCarousel'
 import TypingText from './TypingText'
+import LoginPage from './LoginPage'
+import BookingDetails from './BookingDetails'
+import TypingGreeting from './TypingGreeting'
 
 interface Hotel {
   id: string
@@ -25,11 +28,22 @@ interface Message {
   sender: 'user' | 'bot'
   timestamp: Date
   structuredData?: any
-  type?: 'text' | 'structured' | 'booking_form' | 'hotel_carousel'
+  type?: 'text' | 'structured' | 'booking_form' | 'hotel_carousel' | 'booking_details'
   showMapButton?: boolean
+  showConfirmationButton?: boolean
   reservationURL?: string
   hotels?: Hotel[]
   selectedHotel?: { id: string; name: string }
+  bookingData?: {
+    bookingRef: string
+    hotel: string
+    checkIn: string
+    checkOut: string
+    guests: string
+    room: string
+    isUpdated: boolean
+  }
+  additionalMessage?: string
   isTyping?: boolean
   typingComplete?: boolean
 }
@@ -44,13 +58,7 @@ const QUICK_ACTIONS = [
 
 const API_BASE_URL = 'http://localhost:5001'
 
-const DISCOUNT_MESSAGES = [
-  "Get 20% off your next booking!",
-  "Special weekend offers available!",
-  "Book now and save up to 30%!",
-  "Exclusive discounts just for you!",
-  "Limited time offer - 25% off!",
-]
+const GREETING_MESSAGE = "AYUBOWAN! I'm Maya. How can I assist you?"
 
 // Demo user types for testing
 const DEMO_USERS = [
@@ -83,7 +91,6 @@ export default function Chatbot() {
   const [userType, setUserType] = useState('')
   const [emailInput, setEmailInput] = useState('')
   const [emailError, setEmailError] = useState('')
-  const [currentDiscountIndex, setCurrentDiscountIndex] = useState(0)
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -121,14 +128,6 @@ export default function Chatbot() {
     setIsLoggedIn(false)
   }, [])
 
-  // Rotate discount messages
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentDiscountIndex((prev) => (prev + 1) % DISCOUNT_MESSAGES.length)
-    }, 3000) // Change every 3 seconds
-
-    return () => clearInterval(interval)
-  }, [])
 
   const handleDemoUserSelect = (demoUser: typeof DEMO_USERS[0]) => {
     localStorage.setItem('chatbot_user_email', demoUser.email)
@@ -268,6 +267,19 @@ export default function Chatbot() {
           hotels: response.data.hotels,
           isTyping: true
         }
+      } else if (response.data.type === 'booking_details') {
+        // Booking details response
+        botMessage = {
+          id: (Date.now() + 1).toString(),
+          text: response.data.response,
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'booking_details',
+          bookingData: response.data.booking_data,
+          showConfirmationButton: response.data.show_confirmation_button || false,
+          additionalMessage: response.data.additional_message || '',
+          isTyping: true
+        }
       } else if (response.data.type === 'structured') {
         // Structured response with cards
         botMessage = {
@@ -286,6 +298,8 @@ export default function Chatbot() {
           timestamp: new Date(),
           type: 'text',
           showMapButton: response.data.show_map_button || false,
+          showConfirmationButton: response.data.show_confirmation_button || false,
+          reservationURL: response.data.reservation_url || undefined,
           isTyping: true
         }
       }
@@ -361,10 +375,10 @@ export default function Chatbot() {
       {/* Floating Chat Button */}
       {!isOpen && (
         <div className={styles.chatButtonContainer}>
-          {/* Discount Bubble */}
-          <div className={styles.discountBubble}>
-            <span className={styles.discountText} key={currentDiscountIndex}>
-              {DISCOUNT_MESSAGES[currentDiscountIndex]}
+          {/* Greeting Bubble */}
+          <div className={styles.greetingBubble}>
+            <span className={styles.greetingText}>
+              <TypingGreeting text={GREETING_MESSAGE} speed={50} />
             </span>
           </div>
 
@@ -374,7 +388,7 @@ export default function Chatbot() {
             onClick={() => setIsOpen(true)}
             aria-label="Open chat"
           >
-            <img src="/ayu.jpg" alt="Chat with us" className={styles.chatButtonImage} />
+            <img src="/cinnamon-flower.png" alt="Chat with us" className={styles.chatButtonImage} />
           </button>
         </div>
       )}
@@ -465,73 +479,28 @@ export default function Chatbot() {
 
           {/* Login or Chat Content */}
           {!isLoggedIn ? (
-            <div className={styles.loginContent}>
-              <div className={styles.loginWrapper}>
-                <div className={styles.loginAvatar}>
-                  <img src="/ayu.jpg" alt="Concierge" />
-                </div>
-                <h2 className={styles.loginTitle}>Welcome!</h2>
-                <p className={styles.loginSubtitle}>Sign in to start chatting with us</p>
-
-                <div className={styles.userTypeSelection}>
-                  {DEMO_USERS.map((user) => (
-                    <button
-                      key={user.type}
-                      className={styles.userTypeCard}
-                      onClick={() => handleDemoUserSelect(user)}
-                    >
-                      <div className={styles.userTypeIcon}>👤</div>
-                      <div className={styles.userTypeEmail}>{user.email}</div>
-                    </button>
-                  ))}
-                </div>
-
-                <p className={styles.loginPrivacy}>
-                  We respect your privacy. Your information is secure with us.
-                </p>
-              </div>
-            </div>
+            <LoginPage onLogin={(email, type) => {
+              setUserEmail(email)
+              setUserType(type)
+              setIsLoggedIn(true)
+            }} />
           ) : (
             <>
               {/* Quick Actions - Collapsible */}
-              <div className={`${styles.quickActions} ${isQuickActionsCollapsed ? styles.collapsed : ''}`}>
-                {isQuickActionsCollapsed && (
-                  <button
-                    className={styles.hamburgerButton}
-                    onClick={() => setIsQuickActionsCollapsed(false)}
-                    aria-label="Show quick actions"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <line x1="3" y1="12" x2="21" y2="12"></line>
-                      <line x1="3" y1="6" x2="21" y2="6"></line>
-                      <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                  </button>
-                )}
-                {!isQuickActionsCollapsed && (
-                  <>
-                    {QUICK_ACTIONS.map(action => (
-                      <button
-                        key={action.id}
-                        className={styles.quickActionButton}
-                        onClick={() => handleQuickAction(action.id)}
-                        disabled={isLoading}
-                      >
-                        <img src={action.icon} alt={action.label} className={styles.quickActionIcon} />
-                      </button>
-                    ))}
+              {!isQuickActionsCollapsed && (
+                <div className={styles.quickActions}>
+                  {QUICK_ACTIONS.map(action => (
                     <button
-                      className={styles.collapseButton}
-                      onClick={() => setIsQuickActionsCollapsed(true)}
-                      aria-label="Hide quick actions"
+                      key={action.id}
+                      className={styles.quickActionButton}
+                      onClick={() => handleQuickAction(action.id)}
+                      disabled={isLoading}
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="18 15 12 9 6 15"></polyline>
-                      </svg>
+                      <img src={action.icon} alt={action.label} className={styles.quickActionIcon} />
                     </button>
-                  </>
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
               {/* Messages */}
               <div className={styles.messagesContainer}>
             {messages.map((message) => (
@@ -551,7 +520,43 @@ export default function Chatbot() {
                 )}
                 <div className={styles.messageBubble}>
                   {message.type === 'booking_form' ? (
-                    <BookingForm onSubmit={handleBookingFormSubmit} selectedHotel={message.selectedHotel} />
+                    <BookingForm onSubmit={handleBookingFormSubmit} selectedHotel={message.selectedHotel} isMaximized={isMaximized} />
+                  ) : message.type === 'booking_details' && message.bookingData ? (
+                    <>
+                      {message.text && (
+                        <p className={styles.messageText}>
+                          {message.isTyping && !message.typingComplete ? (
+                            <TypingText text={message.text} onComplete={() => handleTypingComplete(message.id)} />
+                          ) : (
+                            message.text
+                          )}
+                        </p>
+                      )}
+                      {(!message.isTyping || message.typingComplete) && (
+                        <>
+                          <BookingDetails
+                            bookingRef={message.bookingData.bookingRef}
+                            hotel={message.bookingData.hotel}
+                            checkIn={message.bookingData.checkIn}
+                            checkOut={message.bookingData.checkOut}
+                            guests={message.bookingData.guests}
+                            room={message.bookingData.room}
+                            isUpdated={message.bookingData.isUpdated}
+                          />
+                          {message.additionalMessage && (
+                            <p className={styles.additionalMessage}>{message.additionalMessage}</p>
+                          )}
+                        </>
+                      )}
+                      {(!message.isTyping || message.typingComplete) && message.showConfirmationButton && (
+                        <button
+                          className={styles.confirmButton}
+                          onClick={() => handleSendMessage('confirm')}
+                        >
+                          Confirm Changes
+                        </button>
+                      )}
+                    </>
                   ) : message.type === 'hotel_carousel' && message.hotels ? (
                     <>
                       {message.text && (
@@ -584,6 +589,14 @@ export default function Chatbot() {
                           onClick={() => window.open(message.reservationURL, '_blank')}
                         >
                           Complete Your Booking
+                        </button>
+                      )}
+                      {(!message.isTyping || message.typingComplete) && message.showConfirmationButton && (
+                        <button
+                          className={styles.confirmButton}
+                          onClick={() => handleSendMessage('confirm')}
+                        >
+                          Confirm Changes
                         </button>
                       )}
                       {(!message.isTyping || message.typingComplete) && message.showMapButton && (

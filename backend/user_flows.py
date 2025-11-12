@@ -10,22 +10,29 @@ from data import HOTELS, get_hotel_by_id, get_activities_for_hotel
 def handle_new_booking_flow(message):
     """
     Type 1: User wants to book a hotel
-    Flow: Greet -> Show booking form (handled in frontend)
+    Flow: User must specify hotel name -> Show booking form
     """
     message_lower = message.lower()
 
-    # Check for booking intent
+    # Check for Cinnamon Grand booking
+    if any(word in message_lower for word in ['cinnamon grand', 'grand colombo', 'book cinnamon grand']):
+        return {
+            'type': 'text',
+            'response': 'Excellent choice! Cinnamon Grand Colombo is our premium city hotel. Please fill in your booking details:',
+            'show_booking_form': True
+        }
+
+    # Check for general booking intent without hotel name
     if any(word in message_lower for word in ['book', 'reservation', 'reserve', 'stay']):
         return {
             'type': 'text',
-            'response': 'Amazing! Please go ahead and share the details.',
-            'show_booking_form': True
+            'response': 'I\'d be happy to help you book! Please specify which hotel you\'d like to book. For example, you can say "I want to book Cinnamon Grand".'
         }
 
     # Default response for new booking users
     return {
         'type': 'text',
-        'response': 'Welcome to Cinnamon Hotels! I can help you book a hotel room. Which property interests you?'
+        'response': 'Welcome to Cinnamon Hotels! I can help you book a hotel room. Which property would you like to book?'
     }
 
 
@@ -33,15 +40,15 @@ def handle_new_booking_flow(message):
 def handle_explorer_flow(message):
     """
     Type 2: User wants to explore Sri Lanka and get recommendations
-    Flow: Welcome -> Ask interests -> Recommend hotels -> Create itinerary
+    Flow: User says "just landed" -> Welcome -> Ask preferences -> Show hotel carousel
     """
     message_lower = message.lower()
 
-    # Welcome message for new visitors
-    if any(word in message_lower for word in ['hi', 'hello', 'hey', 'arrived', 'new', 'first time', 'explore']):
+    # Welcome message for "just landed" or initial greeting
+    if any(phrase in message_lower for phrase in ['just landed', 'landed in sri lanka', 'arrived in sri lanka', 'hi', 'hello', 'hey']):
         return {
             'type': 'text',
-            'response': 'AYUBOWAN! Welcome to Sri Lanka! I can help you explore the island. Are you more interested in cultural sites, food, shopping, beaches, or a mix of everything?',
+            'response': 'AYUBOWAN! Welcome to Sri Lanka! 🌴 I\'m thrilled to help you explore our beautiful island. You can explore our hotels on the map or tell me - what kind of experience are you looking for? Beaches, cultural sites, wildlife, or a mix of everything?',
             'show_map_button': True
         }
 
@@ -226,15 +233,62 @@ def handle_edit_booking_flow(message):
     """
     message_lower = message.lower()
 
-    # Check for booking reference
-    has_booking_ref = any(word in message_lower for word in ['clb-', 'cgd-', 'cb-', 'cc-', 'reference', 'booking id'])
+    # Check for booking reference pattern (CLB-1234, CGD-5678, etc)
+    has_booking_ref = any(word in message_lower for word in ['clb-', 'cgd-', 'cb-', 'cc-'])
 
-    if 'change' in message_lower or 'edit' in message_lower or 'modify' in message_lower:
-        if has_booking_ref:
-            # Extract mock booking reference
+    # Date change request - check this first before other logic
+    if any(word in message_lower for word in ['checkout', 'check-out', 'check out']) and any(word in message_lower for word in ['20th', '18th', '19th', '21st', '22nd', 'change', 'update']):
+        if '20th' in message_lower:
+            return {
+                'type': 'booking_details',
+                'response': 'Perfect! I have updated your booking:',
+                'booking_data': {
+                    'bookingRef': 'CLB-4821',
+                    'hotel': 'Cinnamon Grand Colombo',
+                    'checkIn': 'November 15, 2025',
+                    'checkOut': 'November 20, 2025',
+                    'guests': '2 Adults',
+                    'room': 'Deluxe Room',
+                    'isUpdated': True
+                },
+                'show_confirmation_button': True,
+                'additional_message': 'No extra charges apply. Please confirm your changes to complete the modification.'
+            }
+        else:
             return {
                 'type': 'text',
-                'response': 'That\'s a good choice! Share me your booking ID please.'
+                'response': 'What would you like the new check-out date to be?'
+            }
+
+    # Check-in date changes
+    if any(word in message_lower for word in ['checkin', 'check-in', 'check in']) and any(word in message_lower for word in ['change', 'update', 'modify']):
+        return {
+            'type': 'text',
+            'response': 'What would you like the new check-in date to be?'
+        }
+
+    # If just booking reference provided (like "CLB-4821")
+    if has_booking_ref and not any(word in message_lower for word in ['change', 'edit', 'modify', 'checkout', 'checkin', 'guest', 'room']):
+        return {
+            'type': 'booking_details',
+            'response': 'Thank you! I found your booking:',
+            'booking_data': {
+                'bookingRef': 'CLB-4821',
+                'hotel': 'Cinnamon Grand Colombo',
+                'checkIn': 'November 15, 2025',
+                'checkOut': 'November 18, 2025',
+                'guests': '2 Adults',
+                'room': 'Deluxe Room',
+                'isUpdated': False
+            }
+        }
+
+    # If user wants to change/edit/modify
+    if 'change' in message_lower or 'edit' in message_lower or 'modify' in message_lower:
+        if has_booking_ref:
+            return {
+                'type': 'text',
+                'response': 'Thank you! What would you like to change? Check-in date, check-out date, number of guests, or room type?'
             }
         else:
             return {
@@ -242,31 +296,41 @@ def handle_edit_booking_flow(message):
                 'response': 'I can help! Just share your booking reference number with me (e.g., CLB-4821).'
             }
 
-    # If booking reference provided
-    if has_booking_ref:
+    # Guest count changes
+    if any(word in message_lower for word in ['guest', 'people', 'person', 'adult', 'child']):
         return {
             'type': 'text',
-            'response': 'Thank you! What would you like to change? Check-in date, check-out date, number of guests, or room type?'
+            'response': 'How many guests will be staying? Please specify adults and children if applicable.'
         }
 
-    # Date change request
-    if any(word in message_lower for word in ['date', 'check-in', 'check-out', '20th', '18th']):
-        # Extract date if possible
-        if '20th' in message_lower:
-            return {
-                'type': 'text',
-                'response': 'Perfect! I have updated your booking to check-out on the 20th instead of the 18th. No extra charges apply. Anything else you\'d like to adjust?'
-            }
+    # Room type changes
+    if any(word in message_lower for word in ['room', 'suite', 'upgrade', 'downgrade']):
         return {
             'type': 'text',
-            'response': 'What would you like the new check-out date to be?'
+            'response': 'What type of room would you like to change to? We have Deluxe Rooms, Suites, and Premium Rooms available.'
         }
 
-    # Confirmation
+    # Confirmation - when user confirms the changes
+    if any(word in message_lower for word in ['confirm', 'yes', 'ok', 'okay', 'correct', 'proceed']):
+        # Generate reservation URL with updated details
+        # Hotel: 42169 (Cinnamon Grand Colombo)
+        # Check-in: November 15, 2025 -> 2025-11-15
+        # Check-out: November 20, 2025 -> 2025-11-20 (updated from 18th)
+        # Guests: 2 Adults -> adult=1,1&child=1,0
+        # Rooms: 1
+        reservation_url = 'https://reservations.cinnamonhotels.com/?adult=1%2C1&arrive=2025-11-15&chain=31106&child=1%2C0&childages=%2C&currency=USD&depart=2025-11-20&hotel=42169&level=chain&locale=en-US&productcurrency=USD&rooms=1&segment=BB'
+
+        return {
+            'type': 'text',
+            'response': 'Excellent! Your booking has been successfully updated. Click below to complete your reservation with the new details.',
+            'reservation_url': reservation_url
+        }
+
+    # When user says no more changes
     if any(word in message_lower for word in ['no', 'that\'s all', 'nothing else', 'done', 'good']):
         return {
             'type': 'text',
-            'response': 'All good now, enjoy! 🎉 If you need anything else, I\'m here to help.'
+            'response': 'All set! If you need anything else, I\'m here to help. Have a wonderful stay!'
         }
 
     # Default edit booking response

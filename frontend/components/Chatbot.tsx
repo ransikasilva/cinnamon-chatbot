@@ -7,20 +7,11 @@ import StructuredResponse from './StructuredResponse'
 import MapPopup from './MapPopup'
 import BookingForm, { BookingFormData } from './BookingForm'
 import GoogleMapPanel from './GoogleMapPanel'
-import HotelCarousel from './HotelCarousel'
+import HotelCarousel, { Hotel } from './HotelCarousel'
 import TypingText from './TypingText'
 import LoginPage from './LoginPage'
 import BookingDetails from './BookingDetails'
 import TypingGreeting from './TypingGreeting'
-
-interface Hotel {
-  id: string
-  name: string
-  location: string
-  description?: string
-  image?: string
-  highlights?: string[]
-}
 
 interface Message {
   id: string

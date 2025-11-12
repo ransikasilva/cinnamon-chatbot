@@ -29,7 +29,7 @@ export default function BookingForm({ onSubmit, selectedHotel, isMaximized }: Bo
 
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
-  const [adults, setAdults] = useState(4)
+  const [adults, setAdults] = useState(2)
   const [children, setChildren] = useState(0)
   const [rooms, setRooms] = useState(1)
   const [specialCode, setSpecialCode] = useState('')
@@ -105,7 +105,7 @@ export default function BookingForm({ onSubmit, selectedHotel, isMaximized }: Bo
               <button
                 type="button"
                 className={styles.counterBtn}
-                onClick={() => setAdults(Math.min(10, adults + 1))}
+                onClick={() => setAdults(Math.min(3, adults + 1))}
               >
                 +
               </button>

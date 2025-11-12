@@ -528,8 +528,7 @@ The user asked: "{last_message}"
 
 Data retrieved from tools: {tool_data}
 
-Convert this data into a natural, conversational response. Be friendly and helpful. 
-Make it sound natural and engaging, not like you're reading off a list.
+Convert this data into a natural, conversational response. Don not greet the user in the beginning because as this might be asked in the midst of the conversation.
 After providing the information, ask if they need help with their hotel booking.
 
 Keep the response concise and conversational."""

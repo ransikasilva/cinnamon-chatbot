@@ -15,6 +15,7 @@ from typing import TypeAlias
 
 from langchain_core import messages
 
+from octave.chml.chatbot.backend.app.utils import weather_tools
 from octave.chml.chatbot.backend.app.workflows.booking_workflow.graph import states
 
 BookingState: TypeAlias = states.BookingState
@@ -387,15 +388,16 @@ Current Message: "{all_msgs[-1].content}"
 Classify as ONE of:
 1. "booking" - User is providing booking details, selecting options, or progressing booking
 2. "info_query" - User is asking about amenities, policies, hotel info, prices, facilities, location details
-3. "general" - Greetings, clarifications, thanks, or other general conversation
+3. "manage_booking" - User wants to manage/modify an existing booking, enter confirmation details, or access their reservation
+4. "general" - weather info, Greetings, clarifications, thanks, or other general conversation
 
-Return ONLY ONE WORD: booking, info_query, or general"""
+Return ONLY ONE WORD: booking, info_query, manage_booking, or general"""
 
     response = llm.invoke(classification_prompt)
     intent = response.content.strip().lower()
 
     # Default to booking if unclear
-    if intent not in ["booking", "info_query", "general"]:
+    if intent not in ["booking", "info_query", "manage_booking", "general"]:
         intent = "booking"
 
     state["_intent"] = intent
@@ -436,5 +438,110 @@ After answering, gently ask if they'd like to continue with their booking or hav
     # Don't change booking state, just answer the question
 
     logger.debug("Info query answered, returning to conversation flow")
+
+    return state
+
+
+def manage_booking_node(state: BookingState) -> BookingState:
+    """Manage booking by showing message and preparing for redirection."""
+    logger.debug("=== EXECUTING: manage_booking_node ===")
+
+    # Set the booking URL
+    booking_url = "https://reservations.cinnamonhotels.com/signin?_ga=2.127479821.1833670624.1762785086-2007558351.1762785086&_gl=1*1xzur26*_gcl_au*MTA1Mjc3NjgyMi4xNzE5OTkzNTUz&adult=1&arrive=2025-11-11&chain=31106&child=0&depart=2025-11-12&level=chain&locale=en-US&rooms=1"
+
+    state["booking_url"] = booking_url
+
+    response = """Perfect! To complete your booking, please:
+
+📋 **Enter the following in the redirected window:**
+   - Your itinerary or confirmation number
+   - Item number (if applicable)
+   - Email address
+
+You will be redirected to the booking page to continue with your reservation."""
+
+    state["messages"].append(messages.AIMessage(content=response))
+    state["conversation_complete"] = True
+
+    logger.debug("Booking management complete, URL set for redirection")
+
+    return state
+
+
+def handle_general_node(state: BookingState, llm) -> BookingState:
+    """Handle general greetings, thanks, conversational messages, and weather queries."""
+    logger.debug("=== EXECUTING: handle_general_node ===")
+
+    last_message = state["messages"][-1].content
+    conversation_summary = state.get("_conversation_summary", "")
+
+    # Get all available tools and bind them to the LLM
+    available_tools = weather_tools.get_weather_tools()
+    llm_with_tools = llm.bind_tools(available_tools)
+
+    general_prompt = f"""You are a friendly hotel booking assistant EXCLUSIVELY for Cinnamon Hotels.
+
+Conversation Summary: "{conversation_summary}"
+User Message: "{last_message}"
+
+IMPORTANT RULES:
+1. ONLY respond to greetings, thanks, clarifications, or topics related to Cinnamon Hotels, hotel bookings, travel to Sri Lanka/Maldives, or hospitality.
+2. Use the available tools when needed to provide accurate information (e.g., weather queries about Sri Lanka or Maldives).
+3. If the user asks about ANYTHING completely unrelated to Cinnamon Hotels or travel (e.g., sports, politics, cooking recipes, general knowledge, other hotels, etc.), politely decline with a message like:
+   "I'm a specialized assistant for Cinnamon Hotels bookings. I can only help you with hotel reservations in Sri Lanka and the Maldives. How can I assist you with your hotel booking today?"
+
+4. For greetings: Greet them warmly and offer to help with Cinnamon Hotels bookings.
+5. For thanks: Acknowledge kindly and ask if there's anything else about Cinnamon Hotels you can help with.
+6. For clarifications about hotels/bookings: Respond helpfully.
+
+Keep your response friendly, concise, and focused on Cinnamon Hotels services.
+"""
+
+    response = llm_with_tools.invoke(general_prompt)
+
+    # Check if the LLM wants to use tools
+    if hasattr(response, "tool_calls") and response.tool_calls:
+        # Execute tool calls
+        tool_results = []
+        tools_dict = {tool.name: tool for tool in available_tools}
+
+        for tool_call in response.tool_calls:
+            tool_name = tool_call["name"]
+            tool_args = tool_call["args"]
+
+            logger.debug("Executing tool: %s with args: %s", tool_name, tool_args)
+
+            if tool_name in tools_dict:
+                tool_func = tools_dict[tool_name]
+                tool_result = tool_func.invoke(tool_args)
+                tool_results.append(tool_result)
+            else:
+                logger.warning("Unknown tool requested: %s", tool_name)
+
+        # Have the LLM convert tool results to natural language
+        if tool_results:
+            tool_data = "\n\n".join(tool_results)
+
+            natural_language_prompt = f"""You are a friendly hotel booking assistant for Cinnamon Hotels.
+
+The user asked: "{last_message}"
+
+Data retrieved from tools: {tool_data}
+
+Convert this data into a natural, conversational response. Be friendly and helpful. 
+Make it sound natural and engaging, not like you're reading off a list.
+After providing the information, ask if they need help with their hotel booking.
+
+Keep the response concise and conversational."""
+
+            final_response = llm.invoke(natural_language_prompt)
+            state["messages"].append(messages.AIMessage(content=final_response.content))
+        else:
+            state["messages"].append(messages.AIMessage(content=response.content))
+    else:
+        # No tools needed, just return the response
+        state["messages"].append(messages.AIMessage(content=response.content))
+
+    logger.debug("General greeting/conversation handled")
 
     return state

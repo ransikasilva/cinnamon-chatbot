@@ -30,6 +30,10 @@ def build_booking_graph(hotels_data: dict, llm, checkpointer=None):
         functools.partial(nodes.classify_intent_node, llm=llm),
     )
     workflow.add_node(
+        "handle_general",
+        functools.partial(nodes.handle_general_node, llm=llm),
+    )
+    workflow.add_node(
         "handle_info",
         functools.partial(
             nodes.handle_info_query_node,
@@ -37,6 +41,7 @@ def build_booking_graph(hotels_data: dict, llm, checkpointer=None):
             llm=llm,
         ),
     )
+    workflow.add_node("manage_booking", nodes.manage_booking_node)
     workflow.add_node(
         "extract_booking_info",
         functools.partial(
@@ -65,13 +70,21 @@ def build_booking_graph(hotels_data: dict, llm, checkpointer=None):
         "classify_intent",
         edges.route_by_intent,
         {
+            "handle_general": "handle_general",
             "handle_info": "handle_info",
+            "manage_booking": "manage_booking",
             "continue_booking": "extract_booking_info",
         },
     )
 
+    # General greetings/conversation goes to END
+    workflow.add_edge("handle_general", graph.END)
+
     # Info query loops back to allow more questions
     workflow.add_edge("handle_info", graph.END)
+
+    # Manage booking goes to END for redirection
+    workflow.add_edge("manage_booking", graph.END)
 
     # Normal booking flow
     workflow.add_edge("extract_booking_info", "check_destination")

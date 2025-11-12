@@ -28,6 +28,7 @@ class BookingState(TypedDict):
     ready_for_booking: bool
     conversation_complete: bool
     show_booking_form: bool
+    booking_url: str | None  # URL for booking redirection
     _recommendations: list | None  # Temporary storage for property recommendations
     _intent: str | None  # User intent classification: booking, info_query, general
     _conversation_summary: str | None  # Summary of conversation so far for context

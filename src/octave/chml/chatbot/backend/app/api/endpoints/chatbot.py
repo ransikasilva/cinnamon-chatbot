@@ -11,6 +11,7 @@
 import logging
 
 import fastapi
+from langchain_core import runnables
 
 from octave.chml.chatbot.backend.app.schemas import requests, responses
 from octave.chml.chatbot.backend.app.utils import helpers
@@ -50,6 +51,14 @@ async def process_query(request: requests.QueryRequest):
     # Get the state
     state = result["state"]
 
+    # Check for booking URL (for manage booking flow)
+    if state.get("booking_url"):
+        response.reservation_url = state["booking_url"]
+
+        # Clear the booking_url from state to prevent repeated redirects
+        config: runnables.RunnableConfig = {"configurable": {"thread_id": session_id}}
+        booking_agent.graph.update_state(config, {"booking_url": None})
+
     # Check if we should show the booking form
     if state.get("show_booking_form") and state.get("selected_property"):
         response.show_form = True
@@ -62,23 +71,6 @@ async def process_query(request: requests.QueryRequest):
             ),
             "rooms": state.get("rooms") if state.get("rooms") else 1,
         }
-
-    # If ready for booking with complete data, prepare the URL
-    if result.get("ready_for_booking") and result.get("booking_data"):
-        booking_data = result["booking_data"]
-
-        # Check if we have all required data for direct URL
-        if all(
-            [
-                booking_data.get("property_id"),
-                booking_data.get("chain_id"),
-                booking_data.get("check_in"),
-                booking_data.get("check_out"),
-                booking_data.get("adults"),
-            ]
-        ):
-            # Generate reservation URL
-            response.reservation_url = helpers.generate_reservation_url(booking_data)
 
     return response
 
@@ -112,5 +104,21 @@ async def process_reservation(request: requests.ReservationRequest):
 
     # Generate reservation URL
     reservation_url = helpers.generate_reservation_url(booking_data)
+
+    # Clear booking state to prevent repeated redirects and allow new bookings
+    config_clear: runnables.RunnableConfig = {"configurable": {"thread_id": session_id}}
+    booking_agent.graph.update_state(
+        config_clear,
+        {
+            "ready_for_booking": False,
+            "show_booking_form": False,
+            "selected_property": None,
+            "check_in_date": None,
+            "check_out_date": None,
+            "adults": None,
+            "children": None,
+            "rooms": None,
+        },
+    )
 
     return {"reservation_url": reservation_url}

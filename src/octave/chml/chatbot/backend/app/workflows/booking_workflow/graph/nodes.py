@@ -33,6 +33,20 @@ octave_logger.setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
+# Guardrails for all conversational nodes
+GUARDRAILS = """
+GUARDRAILS - You must follow these rules:
+1. Stay focused on Cinnamon Hotels only - do not discuss other hotel chains or competitors
+2. Do not compare Cinnamon Hotels with other hotel brands
+3. Do not engage in conversations completely unrelated to hotels, travel, or hospitality
+4. Do not provide advice on topics outside of hotel bookings and travel to Sri Lanka/Maldives
+5. Do not discuss political, religious, or controversial topics
+6. Politely decline requests that fall outside your scope as a Cinnamon Hotels booking assistant
+7. Do not make up information - if you don't know something, say so
+8. Maintain a professional and friendly tone at all times
+"""
+
+
 def extract_booking_info_node(state: BookingState, hotels_data, llm) -> BookingState:
     """Extract booking information from the user's message using the LLM."""
     logger.debug("=== EXECUTING: extract_booking_info_node ===")
@@ -419,7 +433,9 @@ def handle_info_query_node(state: BookingState, hotels_data, llm) -> BookingStat
     if conversation_summary:
         context += f"Conversation so far: {conversation_summary}\n\n"
 
-    info_prompt = f"""You are a helpful hotel booking assistant. Answer the user's question using the provided context.
+    info_prompt = f"""You are a helpful hotel booking assistant for Cinnamon Hotels.
+
+{GUARDRAILS}
 
 Context:
 {context}
@@ -427,7 +443,8 @@ Context:
 User question: "{last_message}"
 
 Hotels Data: {json.dumps(hotels_data, indent=2)}
-Provide a helpful, friendly, and concise answer based on the context and the given info. 
+
+Provide a helpful, friendly, and concise answer based on the context and the given information. 
 If you don't have specific information, say so politely and offer to help with what you do know.
 
 After answering, gently ask if they'd like to continue with their booking or have other questions."""
@@ -479,20 +496,19 @@ def handle_general_node(state: BookingState, llm) -> BookingState:
     available_tools = weather_tools.get_weather_tools()
     llm_with_tools = llm.bind_tools(available_tools)
 
-    general_prompt = f"""You are a friendly hotel booking assistant EXCLUSIVELY for Cinnamon Hotels.
+    general_prompt = f"""You are a friendly hotel booking assistant for Cinnamon Hotels.
+
+{GUARDRAILS}
 
 Conversation Summary: "{conversation_summary}"
 User Message: "{last_message}"
 
-IMPORTANT RULES:
-1. ONLY respond to greetings, thanks, clarifications, or topics related to Cinnamon Hotels, hotel bookings, travel to Sri Lanka/Maldives, or hospitality.
-2. Use the available tools when needed to provide accurate information (e.g., weather queries about Sri Lanka or Maldives).
-3. If the user asks about ANYTHING completely unrelated to Cinnamon Hotels or travel (e.g., sports, politics, cooking recipes, general knowledge, other hotels, etc.), politely decline with a message like:
-   "I'm a specialized assistant for Cinnamon Hotels bookings. I can only help you with hotel reservations in Sri Lanka and the Maldives. How can I assist you with your hotel booking today?"
-
-4. For greetings: Greet them warmly and offer to help with Cinnamon Hotels bookings.
-5. For thanks: Acknowledge kindly and ask if there's anything else about Cinnamon Hotels you can help with.
-6. For clarifications about hotels/bookings: Respond helpfully.
+Guidelines:
+- For greetings: Greet warmly and offer to help with Cinnamon Hotels bookings
+- For thanks: Acknowledge kindly and ask if there's anything else you can help with
+- For weather queries: Use the available tools to get accurate information for Sri Lanka or Maldives
+- For general conversation: Keep it brief and redirect to booking assistance
+- If asked about unrelated topics: Politely decline and refocus on Cinnamon Hotels services
 
 Keep your response friendly, concise, and focused on Cinnamon Hotels services.
 """

@@ -59,7 +59,7 @@ def handle_explorer_flow(message):
             'response': 'Perfect! For beaches, here are our stunning coastal properties. Click on any hotel to book:',
             'hotels': [
                 {
-                    'id': '42171',
+                    'id': '42175',
                     'name': 'Cinnamon Bey Beruwala',
                     'location': 'Beruwala, Sri Lanka',
                     'description': 'A stunning beachfront resort perfect for beach lovers',
@@ -67,7 +67,7 @@ def handle_explorer_flow(message):
                     'highlights': ['Pristine beaches', 'Water sports', 'Beach BBQ nights', 'Infinity pool']
                 },
                 {
-                    'id': '42175',
+                    'id': '42171',
                     'name': 'Cinnamon Wild Yala',
                     'location': 'Yala, Sri Lanka',
                     'description': 'Luxury safari and beach experience',
@@ -150,7 +150,7 @@ def handle_explorer_flow(message):
                     'highlights': ['Lake views', 'Urban oasis', 'Spa & wellness', 'Shopping nearby']
                 },
                 {
-                    'id': '42171',
+                    'id': '42175',
                     'name': 'Cinnamon Bey Beruwala',
                     'location': 'Beruwala, Sri Lanka',
                     'description': 'Beachfront paradise with water activities',
@@ -166,7 +166,7 @@ def handle_explorer_flow(message):
                     'highlights': ['Luxury living', 'Entertainment', 'Multiple dining', 'Shopping mall']
                 },
                 {
-                    'id': '42175',
+                    'id': '42171',
                     'name': 'Cinnamon Wild Yala',
                     'location': 'Yala, Sri Lanka',
                     'description': 'Unique safari and beach combination',

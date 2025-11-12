@@ -43,7 +43,6 @@ const QUICK_ACTIONS = [
   { id: 'booking', label: 'Booking', icon: '/booking.png' },
   { id: 'edit', label: 'Edit', icon: '/manage.svg' },
   { id: 'dining', label: 'Dinning', icon: '/explore1.svg' },
-  { id: 'hotels', label: 'Hotels', icon: '/hotels.png' },
   { id: 'info', label: 'Info', icon: '/info.png' },
 ]
 
@@ -314,6 +313,12 @@ export default function Chatbot() {
   }
 
   const handleQuickAction = async (action: string) => {
+    // Special handling for booking action
+    if (action === 'booking') {
+      handleSendMessage('I need to book a hotel')
+      return
+    }
+
     setIsLoading(true)
 
     try {

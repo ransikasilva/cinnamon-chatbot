@@ -6,34 +6,78 @@ Handles Type 1 (New Booking), Type 2 (Explorer), Type 3 (Edit Booking)
 from datetime import datetime
 from data import HOTELS, get_hotel_by_id, get_activities_for_hotel
 
+# Shared function to return all available hotels
+def get_all_hotels_carousel():
+    """Returns a carousel with all available Cinnamon hotels"""
+    return {
+        'type': 'hotel_carousel',
+        'response': 'Here are all our available properties. Click on any hotel to book:',
+        'hotels': [
+            {
+                'id': '42169',
+                'name': 'Cinnamon Grand Colombo',
+                'location': 'Colombo 3, Sri Lanka',
+                'description': 'Luxury urban hotel in the heart of Colombo',
+                'image': '/hotels/grand.jpg',
+                'highlights': ['City Center', 'Business Hub', 'Fine Dining', 'Rooftop Bar']
+            },
+            {
+                'id': '42170',
+                'name': 'Cinnamon Lakeside Colombo',
+                'location': 'Colombo 2, Sri Lanka',
+                'description': 'Serene lakeside retreat in the city',
+                'image': '/hotels/lakeside.jpg',
+                'highlights': ['Lake View', 'Spa & Wellness', 'Cultural Sites', 'Shopping']
+            },
+            {
+                'id': '42175',
+                'name': 'Cinnamon Bey Beruwala',
+                'location': 'Beruwala Beach, Sri Lanka',
+                'description': 'Beachfront paradise on the golden coast',
+                'image': '/hotels/beruwala.jpg',
+                'highlights': ['Beach Access', 'Water Sports', 'Ayurveda Spa', 'Seafood']
+            },
+            {
+                'id': '42174',
+                'name': 'Cinnamon Life',
+                'location': 'Union Place, Colombo',
+                'description': 'Modern lifestyle hotel with entertainment',
+                'image': '/hotels/life.jpg',
+                'highlights': ['Shopping Mall', 'Entertainment', 'Modern Luxury', 'City Life']
+            },
+            {
+                'id': '42171',
+                'name': 'Cinnamon Wild Yala',
+                'location': 'Yala National Park',
+                'description': 'Wildlife safari lodge near Yala',
+                'image': '/hotels/yala.jpg',
+                'highlights': ['Safari Tours', 'Wildlife', 'Nature', 'Adventure']
+            }
+        ]
+    }
+
 # Type 1: New Booking User Flow
 def handle_new_booking_flow(message):
     """
     Type 1: User wants to book a hotel
-    Flow: User must specify hotel name -> Show booking form
+    Flow: Show hotel carousel -> User selects -> booking form
     """
     message_lower = message.lower()
 
-    # Check for Cinnamon Grand booking
-    if any(word in message_lower for word in ['cinnamon grand', 'grand colombo', 'book cinnamon grand']):
+    # Check for specific hotel booking (Cinnamon Grand)
+    if any(word in message_lower for word in ['cinnamon grand', 'grand colombo']):
         return {
             'type': 'text',
             'response': 'Excellent choice! Cinnamon Grand Colombo is our premium city hotel. Please fill in your booking details:',
             'show_booking_form': True
         }
 
-    # Check for general booking intent without hotel name
-    if any(word in message_lower for word in ['book', 'reservation', 'reserve', 'stay']):
-        return {
-            'type': 'text',
-            'response': 'I\'d be happy to help you book! Please specify which hotel you\'d like to book. For example, you can say "I want to book Cinnamon Grand".'
-        }
+    # Check for general booking intent or greeting - show all hotels
+    if any(phrase in message_lower for phrase in ['i need to book a hotel', 'i need to book', 'book a hotel', 'show me hotels', 'available hotels', 'book', 'reservation', 'reserve', 'stay', 'hi', 'hello', 'hey']):
+        return get_all_hotels_carousel()
 
-    # Default response for new booking users
-    return {
-        'type': 'text',
-        'response': 'Welcome to Cinnamon Hotels! I can help you book a hotel room. Which property would you like to book?'
-    }
+    # Default response - show all hotels
+    return get_all_hotels_carousel()
 
 
 # Type 2: Explorer User Flow
@@ -43,6 +87,10 @@ def handle_explorer_flow(message):
     Flow: User says "just landed" -> Welcome -> Ask preferences -> Show hotel carousel
     """
     message_lower = message.lower()
+
+    # Check for booking intent - show all hotels
+    if any(phrase in message_lower for phrase in ['i need to book a hotel', 'i need to book', 'book a hotel', 'show me hotels', 'available hotels', 'book', 'reservation', 'reserve']):
+        return get_all_hotels_carousel()
 
     # Welcome message for "just landed" or initial greeting
     if any(phrase in message_lower for phrase in ['just landed', 'landed in sri lanka', 'arrived in sri lanka', 'hi', 'hello', 'hey']):
@@ -232,6 +280,10 @@ def handle_edit_booking_flow(message):
     Flow: Greet -> Ask for booking ID -> Confirm changes -> Update
     """
     message_lower = message.lower()
+
+    # Check for booking intent - show all hotels
+    if any(phrase in message_lower for phrase in ['i need to book a hotel', 'i need to book', 'book a hotel', 'show me hotels', 'available hotels', 'new booking']):
+        return get_all_hotels_carousel()
 
     # Check for booking reference pattern (CLB-1234, CGD-5678, etc)
     has_booking_ref = any(word in message_lower for word in ['clb-', 'cgd-', 'cb-', 'cc-'])

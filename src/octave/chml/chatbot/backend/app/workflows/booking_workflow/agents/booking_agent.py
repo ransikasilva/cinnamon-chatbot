@@ -85,7 +85,7 @@ class HotelBookingAgent:
             "response": last_response,
             "state": result,
             "ready_for_booking": result.get("ready_for_booking", False),
-            "conversation_complete": result.get("conversation_complete", False),
+            # "conversation_complete": result.get("conversation_complete", False),
             "booking_data": (
                 {
                     "property_id": (

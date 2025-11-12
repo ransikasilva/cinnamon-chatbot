@@ -52,12 +52,12 @@ async def process_query(request: requests.QueryRequest):
     state = result["state"]
 
     # Check for booking URL (for manage booking flow)
-    if state.get("booking_url"):
-        response.reservation_url = state["booking_url"]
+    if state.get("manage_booking_url"):
+        response.reservation_url = state["manage_booking_url"]
 
-        # Clear the booking_url from state to prevent repeated redirects
+        # Clear the manage_booking_url from state to prevent repeated redirects
         config: runnables.RunnableConfig = {"configurable": {"thread_id": session_id}}
-        booking_agent.graph.update_state(config, {"booking_url": None})
+        booking_agent.graph.update_state(config, {"manage_booking_url": None})
 
     # Check if we should show the booking form
     if state.get("show_booking_form") and state.get("selected_property"):

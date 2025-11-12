@@ -182,7 +182,7 @@ def check_destination_node(state: BookingState) -> BookingState:
             + "Which destination interests you?"
         )
         state["messages"].append(messages.AIMessage(content=response))
-        state["conversation_complete"] = False
+        # state["conversation_complete"] = False
 
     return state
 
@@ -207,7 +207,7 @@ def check_property_node(state: BookingState, hotels_data, llm) -> BookingState:
                     content="I'm sorry, I couldn't find that destination."
                 )
             )
-            state["conversation_complete"] = False
+            # state["conversation_complete"] = False
             return state
 
         properties = destination_data["properties"]
@@ -256,7 +256,7 @@ def check_property_node(state: BookingState, hotels_data, llm) -> BookingState:
             city center, nature retreat, luxury, family-friendly)"""
 
             state["messages"].append(messages.AIMessage(content=response))
-            state["conversation_complete"] = False
+            # state["conversation_complete"] = False
             return state
 
         # Present recommendations
@@ -275,7 +275,7 @@ def check_property_node(state: BookingState, hotels_data, llm) -> BookingState:
         Which property would you like to book? (You can tell me the number or name)"""
 
         state["messages"].append(messages.AIMessage(content=response))
-        state["conversation_complete"] = False
+        # state["conversation_complete"] = False
 
         # Store recommendations for next interaction
         state["_recommendations"] = recommended_hotels
@@ -307,7 +307,7 @@ def check_booking_details_node(state: BookingState) -> BookingState:
         response += "Please fill in the remaining details to complete your reservation."
 
         state["messages"].append(messages.AIMessage(content=response))
-        state["conversation_complete"] = False
+        # state["conversation_complete"] = False
     else:
         # We have all details, ready for booking
         state["ready_for_booking"] = True
@@ -343,7 +343,7 @@ def finalize_node(state: BookingState) -> BookingState:
     )
 
     state["messages"].append(messages.AIMessage(content=response))
-    state["conversation_complete"] = True
+    # state["conversation_complete"] = True
     state["ready_for_booking"] = True
 
     return state
@@ -447,9 +447,9 @@ def manage_booking_node(state: BookingState) -> BookingState:
     logger.debug("=== EXECUTING: manage_booking_node ===")
 
     # Set the booking URL
-    booking_url = "https://reservations.cinnamonhotels.com/signin?_ga=2.127479821.1833670624.1762785086-2007558351.1762785086&_gl=1*1xzur26*_gcl_au*MTA1Mjc3NjgyMi4xNzE5OTkzNTUz&adult=1&arrive=2025-11-11&chain=31106&child=0&depart=2025-11-12&level=chain&locale=en-US&rooms=1"
+    manage_booking_url = "https://reservations.cinnamonhotels.com/signin?_ga=2.127479821.1833670624.1762785086-2007558351.1762785086&_gl=1*1xzur26*_gcl_au*MTA1Mjc3NjgyMi4xNzE5OTkzNTUz&adult=1&arrive=2025-11-11&chain=31106&child=0&depart=2025-11-12&level=chain&locale=en-US&rooms=1"
 
-    state["booking_url"] = booking_url
+    state["manage_booking_url"] = manage_booking_url
 
     response = """Perfect! To complete your booking, please:
 
@@ -461,7 +461,7 @@ def manage_booking_node(state: BookingState) -> BookingState:
 You will be redirected to the booking page to continue with your reservation."""
 
     state["messages"].append(messages.AIMessage(content=response))
-    state["conversation_complete"] = True
+    # state["conversation_complete"] = True
 
     logger.debug("Booking management complete, URL set for redirection")
 

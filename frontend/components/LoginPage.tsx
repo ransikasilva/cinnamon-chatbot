@@ -34,7 +34,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     <div className={styles.loginContainer}>
       <div className={styles.loginContent}>
         <div className={styles.avatarContainer}>
-          <img src="/ayu.jpg" alt="Maya" className={styles.avatar} />
+          <img src="/ayunew.png" alt="Maya" className={styles.avatar} />
         </div>
 
         <h1 className={styles.greeting}>Hi! I am Maya</h1>

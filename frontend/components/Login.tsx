@@ -37,7 +37,7 @@ export default function Login({ onLogin }: LoginProps) {
     <div className={styles.loginContainer}>
       <div className={styles.loginBox}>
         <div className={styles.logoSection}>
-          <img src="/ayu.jpg" alt="Cinnamon Hotels" className={styles.logo} />
+          <img src="/ayunew.png" alt="Cinnamon Hotels" className={styles.logo} />
           <h1 className={styles.title}>Welcome to Cinnamon Hotels</h1>
           <p className={styles.subtitle}>Your Virtual Concierge</p>
         </div>

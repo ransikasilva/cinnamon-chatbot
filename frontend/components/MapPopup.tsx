@@ -28,7 +28,7 @@ export default function MapPopup({ isOpen, onClose }: MapPopupProps) {
           <div className={styles.rightSection}>
             <div className={styles.header}>
               <div className={styles.avatarCircle}>
-                <img src="/ayu.jpg" alt="Concierge" />
+                <img src="/ayunew.png" alt="Concierge" />
               </div>
             </div>
 

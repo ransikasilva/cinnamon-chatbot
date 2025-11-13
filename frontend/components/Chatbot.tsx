@@ -509,7 +509,7 @@ export default function Chatbot() {
                 {message.sender === 'bot' && (
                   <div className={styles.messageAvatar}>
                     <img
-                      src="/ayu.jpg"
+                      src="/ayunew.png"
                       alt="Virtual Concierge"
                     />
                   </div>
@@ -613,7 +613,7 @@ export default function Chatbot() {
               <div className={`${styles.messageWrapper} ${styles.botMessage}`}>
                 <div className={styles.messageAvatar}>
                   <img
-                    src="/ayu.jpg"
+                    src="/ayunew.png"
                     alt="Virtual Concierge"
                   />
                 </div>

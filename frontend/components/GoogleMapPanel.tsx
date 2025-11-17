@@ -25,60 +25,32 @@ const HOTELS: Hotel[] = [
     placeId: 'ChIJO9nMCQBZ4joRPxfF2JlAKu4'
   },
   {
-    id: '42170',
+    id: '46402',
     name: 'Cinnamon Lakeside Colombo',
     lat: 6.9271,
     lng: 79.8612,
     placeId: 'ChIJv1bUJj1Z4joRyDlJ1LITJZc'
   },
   {
-    id: '42171',
+    id: '46403',
+    name: 'Cinnamon Lodge Habarana',
+    lat: 8.0333,
+    lng: 80.7500,
+    placeId: 'ChIJV9-azWWf_DoR6x941O3kB-4'
+  },
+  {
+    id: '46404',
     name: 'Cinnamon Bey Beruwala',
     lat: 6.4787,
     lng: 79.9820,
     placeId: 'ChIJvRNrbpAu4joRfzR3iJN4iJ8'
   },
   {
-    id: '42174',
-    name: 'Cinnamon Life',
-    lat: 6.9207,
-    lng: 79.8458,
-    placeId: 'ChIJZ0NJ0z1Z4joRxqYXI3CeGmY'
-  },
-  {
-    id: '42175',
-    name: 'Cinnamon Wild Yala',
-    lat: 6.4456,
-    lng: 81.5314,
-    placeId: 'ChIJS1hoz4yD5joREWNrIi3i8aM'
-  },
-  {
-    id: '42176',
+    id: '46405',
     name: 'Cinnamon Citadel Kandy',
     lat: 7.3063,
     lng: 80.6238,
     placeId: 'ChIJ-XGT93po4zoRHShxzlBmszM'
-  },
-  {
-    id: '42177',
-    name: 'Habarana Village by Cinnamon',
-    lat: 8.0333,
-    lng: 80.7500,
-    placeId: 'ChIJV9-azWWf_DoR6x941O3kB-4'
-  },
-  {
-    id: '42178',
-    name: 'Trinco Blu by Cinnamon',
-    lat: 8.6193,
-    lng: 81.2184,
-    placeId: 'ChIJKZE_cE-8-zoR1rF4o6Ud6NA'
-  },
-  {
-    id: '42179',
-    name: 'Hikka Tranz by Cinnamon',
-    lat: 6.1397,
-    lng: 80.1004,
-    placeId: 'ChIJ-T8ImsJ34ToRp_ivcngipSU'
   }
 ]
 

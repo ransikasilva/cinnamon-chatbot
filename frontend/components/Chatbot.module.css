@@ -491,14 +491,15 @@
   word-wrap: break-word;
   font-family: var(--font-inter), sans-serif;
   font-weight: 400;
+  white-space: pre-line;
 }
 
 .userMessage .messageText {
-  color: #FFFFFF;
+  color: #FFFFFF !important;
 }
 
 .botMessage .messageText {
-  color: #333333;
+  color: #333333 !important;
 }
 
 /* Reservation Button */

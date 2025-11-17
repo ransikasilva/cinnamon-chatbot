@@ -13,6 +13,8 @@ export default function TypingText({ text, speed = 30, onComplete }: TypingTextP
   const [currentIndex, setCurrentIndex] = useState(0)
 
   useEffect(() => {
+    if (!text) return
+
     if (currentIndex < text.length) {
       const timeout = setTimeout(() => {
         setDisplayedText(prev => prev + text[currentIndex])
@@ -21,7 +23,10 @@ export default function TypingText({ text, speed = 30, onComplete }: TypingTextP
 
       return () => clearTimeout(timeout)
     } else if (onComplete && currentIndex === text.length && currentIndex > 0) {
-      onComplete()
+      const callComplete = setTimeout(() => {
+        onComplete()
+      }, 0)
+      return () => clearTimeout(callComplete)
     }
   }, [currentIndex, text, speed, onComplete])
 
@@ -31,5 +36,5 @@ export default function TypingText({ text, speed = 30, onComplete }: TypingTextP
     setCurrentIndex(0)
   }, [text])
 
-  return <span>{displayedText}</span>
+  return <>{displayedText}</>
 }

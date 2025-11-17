@@ -21,42 +21,42 @@ const HOTELS_DATA: Hotel[] = [
   {
     id: '42169',
     name: 'Cinnamon Grand Colombo',
-    location: 'Colombo 3, Sri Lanka',
+    location: 'Colombo, Sri Lanka',
     image: '/hotels/grand.jpg',
-    description: 'Luxury urban hotel in the heart of Colombo',
+    description: 'Luxury city hotel in the heart of Colombo',
     highlights: ['City Center', 'Business Hub', 'Fine Dining', 'Rooftop Bar']
   },
   {
-    id: '42170',
+    id: '46402',
     name: 'Cinnamon Lakeside Colombo',
-    location: 'Colombo 2, Sri Lanka',
+    location: 'Colombo, Sri Lanka',
     image: '/hotels/lakeside.jpg',
-    description: 'Serene lakeside retreat in the city',
+    description: 'Waterfront hotel with lake and city views',
     highlights: ['Lake View', 'Spa & Wellness', 'Cultural Sites', 'Shopping']
   },
   {
-    id: '42171',
+    id: '46403',
+    name: 'Cinnamon Lodge Habarana',
+    location: 'Habarana, Sri Lanka',
+    image: '/habarana.jpg',
+    description: 'Eco-friendly resort near ancient cultural sites',
+    highlights: ['Nature', 'Wildlife', 'Cultural Tours', 'Eco-Resort']
+  },
+  {
+    id: '46404',
     name: 'Cinnamon Bey Beruwala',
-    location: 'Beruwala Beach, Sri Lanka',
-    image: '/hotels/bey.jpg',
-    description: 'Beachfront paradise on the golden coast',
+    location: 'Beruwala, Sri Lanka',
+    image: '/bentota.jpg',
+    description: 'Beachfront resort with stunning ocean views',
     highlights: ['Beach Access', 'Water Sports', 'Ayurveda Spa', 'Seafood']
   },
   {
-    id: '42174',
-    name: 'Cinnamon Life',
-    location: 'Union Place, Colombo',
-    image: '/hotels/life.jpg',
-    description: 'Modern lifestyle hotel with entertainment',
-    highlights: ['Shopping Mall', 'Entertainment', 'Modern Luxury', 'City Life']
-  },
-  {
-    id: '42175',
-    name: 'Cinnamon Wild Yala',
-    location: 'Yala National Park',
-    image: '/hotels/yala.jpg',
-    description: 'Wildlife safari lodge near Yala',
-    highlights: ['Safari Tours', 'Wildlife', 'Nature', 'Adventure']
+    id: '46405',
+    name: 'Cinnamon Citadel Kandy',
+    location: 'Kandy, Sri Lanka',
+    image: '/citadel.avif',
+    description: 'Scenic hotel overlooking Kandy Lake and mountains',
+    highlights: ['Lake View', 'Hill Country', 'Cultural Sites', 'Temple']
   }
 ]
 

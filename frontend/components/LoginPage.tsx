@@ -7,12 +7,6 @@ interface LoginPageProps {
   onLogin: (email: string, userType: string) => void
 }
 
-const VALID_USERS = {
-  'newbooking@demo.com': 'new_booking',
-  'explorer@demo.com': 'explorer',
-  'editbooking@demo.com': 'edit_booking'
-}
-
 export default function LoginPage({ onLogin }: LoginPageProps) {
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
@@ -20,14 +14,19 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    const userType = VALID_USERS[email.toLowerCase().trim() as keyof typeof VALID_USERS]
+    const trimmedEmail = email.toLowerCase().trim()
 
-    if (userType) {
-      setError('')
-      onLogin(email, userType)
-    } else {
-      setError('Invalid email. Please use a valid demo email.')
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+    if (!emailRegex.test(trimmedEmail)) {
+      setError('Please enter a valid email address.')
+      return
     }
+
+    setError('')
+    // Use 'general' as default user type for all users
+    onLogin(trimmedEmail, 'general')
   }
 
   return (

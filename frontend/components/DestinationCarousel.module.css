@@ -1,0 +1,244 @@
+.carouselContainer {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 4px;
+  min-height: 380px;
+}
+
+.carousel {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  min-height: 350px;
+}
+
+.destinationCard {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+  max-width: 100%;
+  min-height: 350px;
+  display: flex;
+  flex-direction: column;
+}
+
+.imageContainer {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.destinationImage {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.destinationCard:hover .destinationImage {
+  transform: scale(1.05);
+}
+
+.imageOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+  padding: 12px 16px;
+}
+
+.destinationName {
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  font-family: var(--font-poppins), sans-serif;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.cardContent {
+  padding: 14px 16px 16px 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.description {
+  font-size: 13px;
+  color: #666;
+  margin: 0 0 12px 0;
+  font-family: var(--font-inter), sans-serif;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.selectButton {
+  width: 100%;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #5A3082 0%, #7A4BA3 100%);
+  color: white;
+  border: none;
+  border-radius: 18px 0 18px 0;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: var(--font-poppins), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.selectButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(107, 44, 145, 0.3);
+}
+
+.selectButton:active {
+  transform: translateY(0);
+}
+
+/* Navigation Buttons */
+.navButton {
+  position: absolute;
+  top: 40%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  color: #5A3082;
+}
+
+.navButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.navButton:hover {
+  background: #5A3082;
+  color: white;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.navButton:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.prevButton {
+  left: -8px;
+}
+
+.nextButton {
+  right: -8px;
+}
+
+/* Dots Indicator */
+.dotsContainer {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ddd;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.dot:hover {
+  background: #aaa;
+}
+
+.activeDot {
+  background: #5A3082;
+  width: 24px;
+  border-radius: 4px;
+}
+
+/* Responsive for maximized chatbot */
+@media (min-width: 768px) {
+  .carouselContainer {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 0 8px;
+  }
+
+  .imageContainer {
+    height: 220px;
+  }
+
+  .destinationImage {
+    height: 220px;
+  }
+
+  .destinationName {
+    font-size: 22px;
+  }
+
+  .cardContent {
+    padding: 16px 20px;
+  }
+
+  .description {
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+
+  .selectButton {
+    padding: 12px 20px;
+    font-size: 13px;
+  }
+
+  .navButton {
+    width: 36px;
+    height: 36px;
+  }
+
+  .navButton svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .prevButton {
+    left: 8px;
+  }
+
+  .nextButton {
+    right: 8px;
+  }
+
+  .dot {
+    width: 9px;
+    height: 9px;
+  }
+
+  .activeDot {
+    width: 26px;
+  }
+}

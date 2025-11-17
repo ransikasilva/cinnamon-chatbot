@@ -60,3 +60,7 @@ src/tests
 *.log
 .cache/
 .scannerwork/
+
+# Backup and temp
+frontend_backup/
+.claude/

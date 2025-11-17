@@ -7,7 +7,8 @@ import StructuredResponse from './StructuredResponse'
 import MapPopup from './MapPopup'
 import BookingForm, { BookingFormData } from './BookingForm'
 import GoogleMapPanel from './GoogleMapPanel'
-import HotelCarousel, { Hotel } from './HotelCarousel'
+import HotelCarousel, { Hotel, HOTELS_DATA } from './HotelCarousel'
+import DestinationCarousel from './DestinationCarousel'
 import TypingText from './TypingText'
 import LoginPage from './LoginPage'
 import BookingDetails from './BookingDetails'
@@ -19,7 +20,7 @@ interface Message {
   sender: 'user' | 'bot'
   timestamp: Date
   structuredData?: any
-  type?: 'text' | 'structured' | 'booking_form' | 'hotel_carousel' | 'booking_details'
+  type?: 'text' | 'structured' | 'booking_form' | 'hotel_carousel' | 'booking_details' | 'destination_carousel'
   showMapButton?: boolean
   showConfirmationButton?: boolean
   reservationURL?: string
@@ -46,31 +47,9 @@ const QUICK_ACTIONS = [
   { id: 'info', label: 'Info', icon: '/info.png' },
 ]
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 const GREETING_MESSAGE = "AYUBOWAN! I'm Maya. How can I assist you?"
-
-// Demo user types for testing
-const DEMO_USERS = [
-  {
-    email: 'newbooking@demo.com',
-    type: 'new_booking',
-    label: 'New Booking User',
-    description: 'Book a new hotel reservation'
-  },
-  {
-    email: 'explorer@demo.com',
-    type: 'explorer',
-    label: 'Explorer User',
-    description: 'Explore Sri Lanka and get itineraries'
-  },
-  {
-    email: 'editbooking@demo.com',
-    type: 'edit_booking',
-    label: 'Edit Booking User',
-    description: 'Modify existing reservations'
-  }
-]
 
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false)
@@ -149,40 +128,76 @@ export default function Chatbot() {
     setMessages(prev => [...prev, botMessage, formMessage])
   }
 
-  const handleBookingFormSubmit = (data: BookingFormData) => {
-    // Generate pre-filled reservation URL
-    const baseURL = 'https://reservations.cinnamonhotels.com/'
-    const params = new URLSearchParams({
-      adult: data.adults.toString(),
-      arrive: data.checkIn,
-      depart: data.checkOut,
-      hotel: data.hotel,
-      child: data.children.toString(),
-      currency: 'USD',
-      rooms: data.rooms.toString(),
-      chain: '31106',
-      level: 'chain',
-      locale: 'en-US',
-      productcurrency: 'USD'
-    })
+  const handleDestinationSelect = (destination: string) => {
+    // Send the selected destination as a user message
+    handleSendMessage(destination)
+  }
 
-    if (data.specialCode) {
-      params.append('promo', data.specialCode)
+  const handleBookingFormSubmit = async (data: BookingFormData) => {
+    try {
+      // Call backend to process reservation
+      const response = await axios.post(`${API_BASE_URL}/process_reservation`, {
+        session_id: userEmail || userType,
+        reservation_data: {
+          checkIn: data.checkIn,
+          checkOut: data.checkOut,
+          adults: data.adults,
+          children: data.children,
+          rooms: data.rooms,
+          promo: data.specialCode || ''
+        }
+      })
+
+      // Backend returns { reservation_url: "https://..." }
+      const reservationURL = response.data.reservation_url
+
+      // Add bot response with clickable button
+      const botMessage: Message = {
+        id: Date.now().toString(),
+        text: `Perfect! I've prepared your reservation for ${data.hotelName}.\n\nCheck-in: ${data.checkIn}\nCheck-out: ${data.checkOut}\nGuests: ${data.adults} Adult${data.adults > 1 ? 's' : ''}${data.children > 0 ? `, ${data.children} Child${data.children > 1 ? 'ren' : ''}` : ''}\nRooms: ${data.rooms} Room${data.rooms > 1 ? 's' : ''}`,
+        sender: 'bot',
+        timestamp: new Date(),
+        type: 'text',
+        reservationURL: reservationURL
+      }
+
+      setMessages(prev => [...prev, botMessage])
+    } catch (error) {
+      console.error('Error processing reservation:', error)
+
+      // Fallback: generate URL on frontend if backend fails
+      const baseURL = 'https://reservations.cinnamonhotels.com/'
+      const params = new URLSearchParams({
+        adult: data.adults.toString(),
+        arrive: data.checkIn,
+        depart: data.checkOut,
+        hotel: data.hotel,
+        child: data.children.toString(),
+        currency: 'USD',
+        rooms: data.rooms.toString(),
+        chain: '31106',
+        level: 'chain',
+        locale: 'en-US',
+        productcurrency: 'USD'
+      })
+
+      if (data.specialCode) {
+        params.append('promo', data.specialCode)
+      }
+
+      const reservationURL = `${baseURL}?${params.toString()}`
+
+      const botMessage: Message = {
+        id: Date.now().toString(),
+        text: `Perfect! I've prepared your reservation for ${data.hotelName}.\n\nCheck-in: ${data.checkIn}\nCheck-out: ${data.checkOut}\nGuests: ${data.adults} Adult${data.adults > 1 ? 's' : ''}${data.children > 0 ? `, ${data.children} Child${data.children > 1 ? 'ren' : ''}` : ''}\nRooms: ${data.rooms} Room${data.rooms > 1 ? 's' : ''}`,
+        sender: 'bot',
+        timestamp: new Date(),
+        type: 'text',
+        reservationURL: reservationURL
+      }
+
+      setMessages(prev => [...prev, botMessage])
     }
-
-    const reservationURL = `${baseURL}?${params.toString()}`
-
-    // Add bot response with clickable button
-    const botMessage: Message = {
-      id: Date.now().toString(),
-      text: `Perfect! I've prepared your reservation for ${data.hotelName}.\n\nCheck-in: ${data.checkIn}\nCheck-out: ${data.checkOut}\nGuests: ${data.adults} Adult${data.adults > 1 ? 's' : ''}${data.children > 0 ? `, ${data.children} Child${data.children > 1 ? 'ren' : ''}` : ''}\nRooms: ${data.rooms} Room${data.rooms > 1 ? 's' : ''}`,
-      sender: 'bot',
-      timestamp: new Date(),
-      type: 'text',
-      reservationURL: reservationURL
-    }
-
-    setMessages(prev => [...prev, botMessage])
   }
 
   const handleSendMessage = async (messageText?: string) => {
@@ -208,76 +223,69 @@ export default function Chatbot() {
     setInputValue('')
     setIsLoading(true)
 
-    // Check if user is Type 1 (new booking) and wants to book
-    const messageLower = textToSend.toLowerCase()
-    const isBookingIntent = messageLower.includes('book') || messageLower.includes('reservation') || messageLower.includes('reserve')
-
-    if (userType === 'new_booking' && isBookingIntent) {
-      // Show booking form directly for Type 1 users
-      setTimeout(() => {
-        const botMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          text: 'Amazing! Please fill in your booking details below:',
-          sender: 'bot',
-          timestamp: new Date(),
-          type: 'text'
-        }
-
-        const formMessage: Message = {
-          id: (Date.now() + 2).toString(),
-          sender: 'bot',
-          timestamp: new Date(),
-          type: 'booking_form'
-        }
-
-        setMessages(prev => [...prev, botMessage, formMessage])
-        setIsLoading(false)
-      }, 500)
-      return
-    }
-
     try {
-      // Call Flask backend
-      const response = await axios.post(`${API_BASE_URL}/api/chat`, {
-        message: textToSend,
-        userType: userType
+      // Call FastAPI backend
+      const response = await axios.post(`${API_BASE_URL}/process_query`, {
+        query: textToSend,
+        session_id: userEmail || userType // Use email as session ID, fallback to userType
       })
 
-      // Handle response based on type
+      // Handle response based on backend response
       let botMessage: Message
 
-      if (response.data.type === 'hotel_carousel') {
-        // Hotel carousel response
+      // Check if backend is asking for destination (Sri Lanka or Maldives)
+      const responseLower = response.data.response.toLowerCase()
+      const isDestinationPrompt = (
+        (responseLower.includes('sri lanka') && responseLower.includes('maldives')) ||
+        (responseLower.includes('destination') && (responseLower.includes('prefer') || responseLower.includes('interested') || responseLower.includes('choose')))
+      )
+
+      // Check if backend is listing hotels (has multiple hotel names)
+      const hotelNames = ['cinnamon grand', 'cinnamon lakeside', 'cinnamon lodge', 'cinnamon bey', 'cinnamon citadel']
+      const hotelMentions = hotelNames.filter(name => responseLower.includes(name)).length
+      const isHotelListing = hotelMentions >= 3 && (responseLower.includes('properties') || responseLower.includes('wonderful') || responseLower.includes('great choice'))
+
+      if (isHotelListing) {
+        // Show hotel carousel
         botMessage = {
           id: (Date.now() + 1).toString(),
           text: response.data.response,
           sender: 'bot',
           timestamp: new Date(),
           type: 'hotel_carousel',
-          hotels: response.data.hotels,
+          hotels: HOTELS_DATA,
           isTyping: true
         }
-      } else if (response.data.type === 'booking_details') {
-        // Booking details response
+      } else if (isDestinationPrompt) {
+        // Show destination carousel
         botMessage = {
           id: (Date.now() + 1).toString(),
           text: response.data.response,
           sender: 'bot',
           timestamp: new Date(),
-          type: 'booking_details',
-          bookingData: response.data.booking_data,
-          showConfirmationButton: response.data.show_confirmation_button || false,
-          additionalMessage: response.data.additional_message || '',
+          type: 'destination_carousel',
           isTyping: true
         }
-      } else if (response.data.type === 'structured') {
-        // Structured response with cards
+      } else if (response.data.show_form) {
+        // Backend wants to show booking form
         botMessage = {
           id: (Date.now() + 1).toString(),
+          text: response.data.response,
           sender: 'bot',
           timestamp: new Date(),
-          type: 'structured',
-          structuredData: response.data.data
+          type: 'booking_form',
+          isTyping: true
+        }
+      } else if (response.data.reservation_url) {
+        // Manage booking URL provided
+        botMessage = {
+          id: (Date.now() + 1).toString(),
+          text: response.data.response,
+          sender: 'bot',
+          timestamp: new Date(),
+          type: 'text',
+          reservationURL: response.data.reservation_url,
+          isTyping: true
         }
       } else {
         // Simple text response
@@ -287,9 +295,6 @@ export default function Chatbot() {
           sender: 'bot',
           timestamp: new Date(),
           type: 'text',
-          showMapButton: response.data.show_map_button || false,
-          showConfirmationButton: response.data.show_confirmation_button || false,
-          reservationURL: response.data.reservation_url || undefined,
           isTyping: true
         }
       }
@@ -313,50 +318,16 @@ export default function Chatbot() {
   }
 
   const handleQuickAction = async (action: string) => {
-    // Special handling for booking action
-    if (action === 'booking') {
-      handleSendMessage('I need to book a hotel')
-      return
+    // Map quick actions to user messages and send to backend
+    const actionMessages: { [key: string]: string } = {
+      booking: 'I need to book a hotel',
+      edit: 'I need to modify my existing booking',
+      dining: 'Tell me about dining options at your hotels',
+      info: 'I need information about your hotels'
     }
 
-    setIsLoading(true)
-
-    try {
-      const response = await axios.post(`${API_BASE_URL}/api/quick-action`, {
-        action: action
-      })
-
-      // Add bot response
-      const botMessage: Message = {
-        id: Date.now().toString(),
-        text: response.data.response,
-        sender: 'bot',
-        timestamp: new Date()
-      }
-
-      setMessages(prev => [...prev, botMessage])
-    } catch (error) {
-      console.error('Error with quick action:', error)
-
-      // Fallback responses
-      const fallbackResponses: { [key: string]: string } = {
-        rooms: 'We offer luxurious rooms with stunning views. Our Deluxe Rooms start from $150/night. Would you like to know more?',
-        eat: 'Experience fine dining at our multiple restaurants featuring Sri Lankan and international cuisine.',
-        dining: 'Our restaurants offer breakfast buffets, à la carte lunch, and themed dinner nights with live music.',
-        explore: 'Discover Sri Lanka with our curated tours - whale watching, temple visits, and safari adventures!',
-        help: 'I\'m here to help! Call us at +94 11 249 1000 or email reservations@cinnamonhotels.com'
-      }
-
-      const botMessage: Message = {
-        id: Date.now().toString(),
-        text: fallbackResponses[action] || 'How can I assist you today?',
-        sender: 'bot',
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, botMessage])
-    } finally {
-      setIsLoading(false)
-    }
+    const messageText = actionMessages[action] || 'How can I assist you today?'
+    handleSendMessage(messageText)
   }
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -551,6 +522,21 @@ export default function Chatbot() {
                         >
                           Confirm Changes
                         </button>
+                      )}
+                    </>
+                  ) : message.type === 'destination_carousel' ? (
+                    <>
+                      {message.text && (
+                        <p className={styles.messageText}>
+                          {message.isTyping && !message.typingComplete ? (
+                            <TypingText text={message.text} onComplete={() => handleTypingComplete(message.id)} />
+                          ) : (
+                            message.text
+                          )}
+                        </p>
+                      )}
+                      {(!message.isTyping || message.typingComplete) && (
+                        <DestinationCarousel onSelect={handleDestinationSelect} />
                       )}
                     </>
                   ) : message.type === 'hotel_carousel' && message.hotels ? (

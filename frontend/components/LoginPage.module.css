@@ -1,0 +1,209 @@
+.loginContainer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: url('/cinnamonlife.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+.loginContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(107, 44, 145, 0.7);
+  backdrop-filter: blur(2px);
+}
+
+.loginContent {
+  position: relative;
+  z-index: 1;
+  background: white;
+  padding: 32px 28px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  max-width: 340px;
+  width: 90%;
+}
+
+.avatarContainer {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.greeting {
+  font-size: 22px;
+  font-weight: 700;
+  color: #5A3082;
+  text-align: center;
+  margin: 0 0 4px 0;
+  font-family: var(--font-poppins), sans-serif;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+  margin: 0 0 24px 0;
+  font-family: var(--font-inter), sans-serif;
+}
+
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  font-family: var(--font-inter), sans-serif;
+}
+
+.emailInput {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 14px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.3s ease;
+  font-family: var(--font-inter), sans-serif;
+  box-sizing: border-box;
+}
+
+.emailInput:focus {
+  border-color: #5A3082;
+  box-shadow: 0 0 0 3px rgba(107, 44, 145, 0.1);
+}
+
+.errorMessage {
+  background: #FFEBEE;
+  color: #C62828;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-inter), sans-serif;
+  text-align: center;
+}
+
+.loginButton {
+  width: 100%;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #5A3082 0%, #7A4BA3 100%);
+  color: white;
+  border: none;
+  border-radius: 25px 0 25px 0;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: var(--font-poppins), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(107, 44, 145, 0.4);
+}
+
+.loginButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(107, 44, 145, 0.5);
+}
+
+.loginButton:active {
+  transform: translateY(0);
+}
+
+.demoInfo {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #E0E0E0;
+}
+
+.demoTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  margin: 0 0 10px 0;
+  font-family: var(--font-inter), sans-serif;
+  text-align: center;
+}
+
+.demoList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.demoList li {
+  font-size: 11px;
+  color: #888;
+  font-family: var(--font-inter), sans-serif;
+  text-align: center;
+  padding: 4px 8px;
+  background: #F5F5F5;
+  border-radius: 4px;
+}
+
+/* Responsive for maximized */
+@media (min-width: 768px) {
+  .loginContent {
+    max-width: 400px;
+    padding: 40px 36px;
+  }
+
+  .avatar {
+    width: 100px;
+    height: 100px;
+  }
+
+  .greeting {
+    font-size: 26px;
+  }
+
+  .subtitle {
+    font-size: 15px;
+  }
+
+  .label {
+    font-size: 14px;
+  }
+
+  .emailInput {
+    padding: 14px 16px;
+    font-size: 15px;
+  }
+
+  .loginButton {
+    padding: 16px 24px;
+    font-size: 16px;
+  }
+
+  .demoList li {
+    font-size: 12px;
+  }
+}

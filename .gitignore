@@ -1,11 +1,62 @@
-.mypy_cache/
-.idea/
-.scannerwork/
-*.env
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 *.pyc
+.mypy_cache/
+*.egg-info/
+src/chml_chatbot.egg-info
+dist/
+build/
+
+# Virtual environments
+env/
+venv/
+ENV/
+/venv
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+src/octave/chml/chatbot/frontend/node_modules
+
+# Next.js
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment variables
+.env
+*.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.vscode
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+coverage/
+.nyc_output
+
+# Data and tests
 src/data
 src/tests
-src/octave/chml/chatbot/frontend/node_modules
-src/chml_chatbot.egg-info
-.vscode
-/venv
+
+# Misc
+*.log
+.cache/
+.scannerwork/

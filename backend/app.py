@@ -1,0 +1,110 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from simple_responses import get_response, DEFAULT_GREETINGS
+from user_flows import get_user_flow_response
+import random
+from datetime import datetime
+
+app = Flask(__name__)
+CORS(app)
+
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    """Handle chat messages with user flow based routing"""
+    data = request.json
+    user_message = data.get('message', '')
+    user_type = data.get('userType', '')  # Get user type from frontend
+
+    if not user_message:
+        return jsonify({'error': 'No message provided'}), 400
+
+    # Normalize apostrophes at the entry point - handle various apostrophe encodings
+    user_message = (user_message
+                   .replace('\u2019', "'")  # Right single quotation mark
+                   .replace('\u2018', "'")  # Left single quotation mark
+                   .replace('`', "'")       # Backtick
+                   .replace("'", "'")       # Another variant
+                   .replace("'", "'")       # Another variant
+                   .replace('�', "'"))      # Replacement character (encoding error)
+
+    print(f"DEBUG: User message received: {repr(user_message)}")
+    print(f"DEBUG: User type: {user_type}")
+
+    # Use user flow handler if user type is specified
+    if user_type:
+        response_data = get_user_flow_response(user_message, user_type)
+    else:
+        # Fallback to simple response mapping
+        response_data = get_response(user_message)
+
+    print(f"DEBUG: Response data: {response_data}")
+
+    # Handle different response types
+    if response_data.get('type') == 'hotel_carousel':
+        return jsonify({
+            'type': 'hotel_carousel',
+            'response': response_data.get('response', ''),
+            'hotels': response_data.get('hotels', []),
+            'timestamp': datetime.now().isoformat()
+        })
+    elif response_data.get('type') == 'booking_details':
+        return jsonify({
+            'type': 'booking_details',
+            'response': response_data.get('response', ''),
+            'booking_data': response_data.get('booking_data', {}),
+            'show_confirmation_button': response_data.get('show_confirmation_button', False),
+            'additional_message': response_data.get('additional_message', ''),
+            'timestamp': datetime.now().isoformat()
+        })
+    elif response_data.get('type') == 'structured':
+        return jsonify({
+            'type': 'structured',
+            'data': response_data.get('data', response_data),
+            'timestamp': datetime.now().isoformat()
+        })
+    else:
+        return jsonify({
+            'type': 'text',
+            'response': response_data.get('response', 'I apologize, I could not understand that.'),
+            'show_map_button': response_data.get('show_map_button', False),
+            'show_confirmation_button': response_data.get('show_confirmation_button', False),
+            'reservation_url': response_data.get('reservation_url', None),
+            'timestamp': datetime.now().isoformat()
+        })
+
+
+@app.route('/api/quick-action', methods=['POST'])
+def quick_action():
+    """Handle quick action button clicks"""
+    data = request.json
+    action = data.get('action', '').lower()
+
+    quick_responses = {
+        'rooms': "We offer luxurious rooms across all our properties. What type of room are you interested in? Sea view, family suites, or executive rooms?",
+        'spa': "Our Angsana Spa offers traditional Ayurvedic treatments, aromatherapy, and rejuvenating massages. Would you like to know about our spa packages?",
+        'dining': "Experience fine dining at our award-winning restaurants. We offer Sri Lankan cuisine, international dishes, and themed dinner nights. What would you like to know?",
+        'explore': "Discover Sri Lanka with our curated experiences - from temple tours to wildlife safaris. Would you like recommendations based on your interests?",
+        'help': "I'm here to assist you! You can ask me about rooms, dining, experiences, or I can help you plan your entire trip. What would you like to know?"
+    }
+
+    response_text = quick_responses.get(action, "I'm here to help! Please select an option or ask me a question.")
+
+    return jsonify({
+        'type': 'text',
+        'response': response_text,
+        'timestamp': datetime.now().isoformat()
+    })
+
+
+@app.route('/api/health', methods=['GET'])
+def health():
+    """Health check endpoint"""
+    return jsonify({'status': 'healthy', 'service': 'Cinnamon Hotels Chatbot'})
+
+
+if __name__ == '__main__':
+    import os
+    port = int(os.environ.get('PORT', 5001))
+    app.run(debug=False, host='0.0.0.0', port=port)
+

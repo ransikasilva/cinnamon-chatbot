@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react'
 import axios from 'axios'
-import styles from './Chatbot.module.css'
 import StructuredResponse from './StructuredResponse'
 import MapPopup from './MapPopup'
 import BookingForm, { BookingFormData } from './BookingForm'
@@ -96,16 +95,6 @@ export default function Chatbot() {
     localStorage.removeItem('chatbot_user_type')
     setIsLoggedIn(false)
   }, [])
-
-
-  const handleDemoUserSelect = (demoUser: typeof DEMO_USERS[0]) => {
-    localStorage.setItem('chatbot_user_email', demoUser.email)
-    localStorage.setItem('chatbot_user_type', demoUser.type)
-    setUserEmail(demoUser.email)
-    setUserType(demoUser.type)
-    setIsLoggedIn(true)
-    setEmailError('')
-  }
 
   const handleHotelSelect = (hotel: Hotel) => {
     // User selected a hotel from carousel, show booking form
@@ -341,21 +330,21 @@ export default function Chatbot() {
     <>
       {/* Floating Chat Button */}
       {!isOpen && (
-        <div className={styles.chatButtonContainer}>
+        <div className="fixed bottom-6 right-6 z-[1000]">
           {/* Greeting Bubble */}
-          <div className={styles.greetingBubble}>
-            <span className={styles.greetingText}>
+          <div className="absolute bottom-[50px] right-20 bg-purple-light text-white py-3.5 px-5 rounded-[18px] shadow-[0_4px_16px_rgba(90,48,130,0.4)] text-sm font-semibold font-poppins max-w-[220px] animate-bubbleSlide leading-[1.5] break-words after:content-[''] after:absolute after:bottom-2 after:right-[-8px] after:w-0 after:h-0 after:border-[8px] after:border-transparent after:border-l-purple-light after:border-r-0 after:border-b-0 after:mt-[-4px]">
+            <span className="relative z-[2] inline-block">
               <TypingGreeting text={GREETING_MESSAGE} speed={50} />
             </span>
           </div>
 
           {/* Chat Button with Avatar */}
           <button
-            className={styles.chatButton}
+            className="w-[70px] h-[70px] rounded-full bg-white border-none cursor-pointer shadow-[0_4px_20px_rgba(90,48,130,0.3)] flex items-center justify-center transition-all duration-300 p-0 overflow-hidden hover:scale-110 hover:shadow-[0_6px_25px_rgba(107,44,145,0.5)] active:scale-95"
             onClick={() => setIsOpen(true)}
             aria-label="Open chat"
           >
-            <img src="/cinnamon-flower.png" alt="Chat with us" className={styles.chatButtonImage} />
+            <img src="/cinnamon-flower.png" alt="Chat with us" className="w-[120%] h-[120%] object-contain" />
           </button>
         </div>
       )}
@@ -365,13 +354,13 @@ export default function Chatbot() {
 
       {/* Chatbot Window */}
       {isOpen && (
-        <div className={`${styles.chatWindow} ${isMinimized ? styles.minimized : ''} ${isMaximized ? styles.maximized : ''} ${isGoogleMapOpen ? styles.withMap : ''}`}>
+        <div className={`fixed bottom-6 right-6 w-[400px] h-[600px] bg-white rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.2)] flex flex-col overflow-hidden z-[1000] animate-slideUp transition-[height,border-radius] duration-300 ${isMinimized ? 'h-16 rounded-[32px] [&>*:not(.chatHeader)]:hidden' : ''} ${isMaximized ? 'w-[calc(100vw-3rem)] h-[calc(100vh-3rem)] max-w-[calc(100vw-3rem)] max-h-[calc(100vh-3rem)] rounded-xl' : ''} ${isGoogleMapOpen ? 'right-0 w-3/5 left-auto h-screen bottom-0 rounded-none md:w-1/2' : ''}`}>
           {/* Header */}
-          <div className={styles.chatHeader}>
-            <div className={styles.headerContent}>
+          <div className="bg-purple-primary text-white py-3 px-4 flex items-center justify-between rounded-t-2xl border-b-2 border-dotted border-white/40">
+            <div className="flex items-center flex-1 gap-2">
               {isLoggedIn && hasUserSentMessage && (
                 <button
-                  className={styles.headerMenuButton}
+                  className="bg-white/20 border-none text-white w-9 h-9 rounded-lg flex items-center justify-center cursor-pointer transition-all duration-300 flex-shrink-0 hover:bg-white/30 hover:scale-105 active:scale-95"
                   onClick={() => setIsQuickActionsCollapsed(!isQuickActionsCollapsed)}
                   aria-label="Toggle menu"
                 >
@@ -382,17 +371,17 @@ export default function Chatbot() {
                   </svg>
                 </button>
               )}
-              <div className={styles.logoContainer}>
+              <div className="flex-1 flex items-center justify-start">
                 <img
                   src="/logo.png"
                   alt="Cinnamon Hotels & Resorts"
-                  className={styles.logo}
+                  className="h-10 w-auto max-w-[180px] object-contain brightness-0 invert"
                 />
               </div>
             </div>
-            <div className={styles.headerActions}>
+            <div className="flex gap-2 items-center">
               <button
-                className={styles.minimizeButton}
+                className="bg-white/20 border-none text-white w-8 h-8 rounded-full cursor-pointer text-xl flex items-center justify-center transition-[background] duration-200 hover:bg-white/30"
                 onClick={() => {
                   setIsMinimized(!isMinimized)
                   setIsMaximized(false)
@@ -410,7 +399,7 @@ export default function Chatbot() {
                 )}
               </button>
               <button
-                className={styles.maximizeButton}
+                className="bg-white/20 border-none text-white w-8 h-8 rounded-full cursor-pointer text-xl flex items-center justify-center transition-[background] duration-200 hover:bg-white/30"
                 onClick={() => {
                   setIsMaximized(!isMaximized)
                   setIsMinimized(false)
@@ -432,7 +421,7 @@ export default function Chatbot() {
                 )}
               </button>
               <button
-                className={styles.closeButton}
+                className="bg-white/20 border-none text-white w-8 h-8 rounded-full cursor-pointer text-xl flex items-center justify-center transition-[background] duration-200 hover:bg-white/30"
                 onClick={() => setIsOpen(false)}
                 aria-label="Close chat"
               >
@@ -455,43 +444,48 @@ export default function Chatbot() {
             <>
               {/* Quick Actions - Collapsible */}
               {!isQuickActionsCollapsed && (
-                <div className={styles.quickActions}>
+                <div className="flex gap-2 py-2 px-3 bg-purple-primary border-b border-white/10 justify-evenly overflow-visible transition-all duration-300">
                   {QUICK_ACTIONS.map(action => (
                     <button
                       key={action.id}
-                      className={styles.quickActionButton}
+                      className="flex items-center justify-center bg-transparent border-none w-[70px] h-[70px] cursor-pointer transition-all duration-[250ms] flex-shrink-0 p-0 flex-[0_0_auto] hover:translate-y-[-2px] disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() => handleQuickAction(action.id)}
                       disabled={isLoading}
                     >
-                      <img src={action.icon} alt={action.label} className={styles.quickActionIcon} />
+                      <img src={action.icon} alt={action.label} className="w-[65px] h-[65px] object-contain transition-transform duration-[250ms] hover:scale-105" />
                     </button>
                   ))}
                 </div>
               )}
               {/* Messages */}
-              <div className={styles.messagesContainer}>
+              <div className={`flex-1 overflow-y-auto p-5 bg-neutral-50 flex flex-col gap-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-[#d0c4dc] [&::-webkit-scrollbar-thumb]:rounded-[3px] ${isMaximized ? 'p-6' : ''}`}>
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`${styles.messageWrapper} ${
-                  message.sender === 'user' ? styles.userMessage : styles.botMessage
+                className={`flex gap-2 max-w-[85%] w-auto animate-fadeIn ${
+                  message.sender === 'user' ? 'self-end flex-row-reverse' : 'self-start'
                 }`}
               >
                 {message.sender === 'bot' && (
-                  <div className={styles.messageAvatar}>
+                  <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center">
                     <img
                       src="/ayunew.png"
                       alt="Virtual Concierge"
+                      className="w-full h-full object-cover"
                     />
                   </div>
                 )}
-                <div className={styles.messageBubble}>
+                <div className={`py-3.5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.08)] relative flex-1 break-words [&:has(form)]:py-3 [&:has(form)]:px-3.5 ${
+                  message.sender === 'user'
+                    ? 'bg-purple-primary text-white rounded-[20px_20px_4px_20px] px-5'
+                    : 'bg-white text-neutral-700 rounded-[4px_20px_20px_20px] border border-neutral-300 px-5 before:content-[""] before:absolute before:left-[-8px] before:top-3 before:w-0 before:h-0 before:border-solid before:border-[0_8px_8px_0] before:border-transparent before:border-r-white before:[filter:drop-shadow(-1px_1px_1px_rgba(0,0,0,0.05))]'
+                }`}>
                   {message.type === 'booking_form' ? (
                     <BookingForm onSubmit={handleBookingFormSubmit} selectedHotel={message.selectedHotel} isMaximized={isMaximized} />
                   ) : message.type === 'booking_details' && message.bookingData ? (
                     <>
                       {message.text && (
-                        <p className={styles.messageText}>
+                        <p className={`m-0 text-[13px] leading-[1.5] break-words overflow-hidden font-inter font-normal whitespace-pre-line ${message.sender === 'user' ? 'text-white' : 'text-neutral-700'}`}>
                           {message.isTyping && !message.typingComplete ? (
                             <TypingText text={message.text} onComplete={() => handleTypingComplete(message.id)} />
                           ) : (
@@ -511,13 +505,13 @@ export default function Chatbot() {
                             isUpdated={message.bookingData.isUpdated}
                           />
                           {message.additionalMessage && (
-                            <p className={styles.additionalMessage}>{message.additionalMessage}</p>
+                            <p className="my-3 mx-0 p-3 px-3.5 bg-[#F0F7FF] border-l-[3px] border-purple-primary rounded-md text-[13px] text-neutral-700 font-inter leading-[1.5]">{message.additionalMessage}</p>
                           )}
                         </>
                       )}
                       {(!message.isTyping || message.typingComplete) && message.showConfirmationButton && (
                         <button
-                          className={styles.confirmButton}
+                          className="mt-3 py-3 px-6 bg-gradient-to-br from-purple-primary to-purple-light text-white border-none rounded-[20px_0_20px_0] text-sm font-bold cursor-pointer transition-all duration-300 inline-flex items-center justify-center w-full font-poppins shadow-[0_3px_10px_rgba(90,48,130,0.4)] uppercase tracking-wider hover:translate-y-[-2px] hover:shadow-[0_5px_16px_rgba(90,48,130,0.5)] active:translate-y-0"
                           onClick={() => handleSendMessage('confirm')}
                         >
                           Confirm Changes
@@ -527,7 +521,7 @@ export default function Chatbot() {
                   ) : message.type === 'destination_carousel' ? (
                     <>
                       {message.text && (
-                        <p className={styles.messageText}>
+                        <p className={`m-0 text-[13px] leading-[1.5] break-words overflow-hidden font-inter font-normal whitespace-pre-line ${message.sender === 'user' ? 'text-white' : 'text-neutral-700'}`}>
                           {message.isTyping && !message.typingComplete ? (
                             <TypingText text={message.text} onComplete={() => handleTypingComplete(message.id)} />
                           ) : (
@@ -536,13 +530,13 @@ export default function Chatbot() {
                         </p>
                       )}
                       {(!message.isTyping || message.typingComplete) && (
-                        <DestinationCarousel onSelect={handleDestinationSelect} />
+                        <DestinationCarousel onSelect={handleDestinationSelect} isMaximized={isMaximized} />
                       )}
                     </>
                   ) : message.type === 'hotel_carousel' && message.hotels ? (
                     <>
                       {message.text && (
-                        <p className={styles.messageText}>
+                        <p className={`m-0 text-[13px] leading-[1.5] break-words overflow-hidden font-inter font-normal whitespace-pre-line ${message.sender === 'user' ? 'text-white' : 'text-neutral-700'}`}>
                           {message.isTyping && !message.typingComplete ? (
                             <TypingText text={message.text} onComplete={() => handleTypingComplete(message.id)} />
                           ) : (
@@ -551,14 +545,14 @@ export default function Chatbot() {
                         </p>
                       )}
                       {(!message.isTyping || message.typingComplete) && (
-                        <HotelCarousel hotels={message.hotels} onHotelSelect={handleHotelSelect} />
+                        <HotelCarousel hotels={message.hotels} onHotelSelect={handleHotelSelect} isMaximized={isMaximized} />
                       )}
                     </>
                   ) : message.type === 'structured' && message.structuredData ? (
                     <StructuredResponse data={message.structuredData} />
                   ) : (
                     <>
-                      <p className={styles.messageText}>
+                      <p className={`m-0 text-[13px] leading-[1.5] break-words font-inter font-normal whitespace-pre-line ${message.sender === 'user' ? 'text-white' : 'text-neutral-700'}`}>
                         {message.isTyping && !message.typingComplete && message.text ? (
                           <TypingText text={message.text} onComplete={() => handleTypingComplete(message.id)} />
                         ) : (
@@ -567,7 +561,7 @@ export default function Chatbot() {
                       </p>
                       {(!message.isTyping || message.typingComplete) && message.reservationURL && (
                         <button
-                          className={styles.reservationButton}
+                          className="mt-3.5 py-3 px-5 bg-gradient-to-br from-purple-primary to-purple-light text-white border-none rounded-[25px_0_25px_0] text-xs font-bold cursor-pointer transition-all duration-300 inline-flex items-center justify-center gap-2.5 font-poppins shadow-[0_4px_12px_rgba(107,44,145,0.4)] w-full uppercase tracking-wider hover:translate-y-[-3px] hover:shadow-[0_6px_20px_rgba(107,44,145,0.5)] active:translate-y-[-1px]"
                           onClick={() => window.open(message.reservationURL, '_blank')}
                         >
                           Complete Your Booking
@@ -575,7 +569,7 @@ export default function Chatbot() {
                       )}
                       {(!message.isTyping || message.typingComplete) && message.showConfirmationButton && (
                         <button
-                          className={styles.confirmButton}
+                          className="mt-3 py-3 px-6 bg-gradient-to-br from-purple-primary to-purple-light text-white border-none rounded-[20px_0_20px_0] text-sm font-bold cursor-pointer transition-all duration-300 inline-flex items-center justify-center w-full font-poppins shadow-[0_3px_10px_rgba(90,48,130,0.4)] uppercase tracking-wider hover:translate-y-[-2px] hover:shadow-[0_5px_16px_rgba(90,48,130,0.5)] active:translate-y-0"
                           onClick={() => handleSendMessage('confirm')}
                         >
                           Confirm Changes
@@ -583,7 +577,7 @@ export default function Chatbot() {
                       )}
                       {(!message.isTyping || message.typingComplete) && message.showMapButton && (
                         <button
-                          className={styles.mapButton}
+                          className="mt-3 py-2.5 px-5 bg-purple-primary text-white border-none rounded-[20px_0_20px_0] text-sm font-semibold cursor-pointer transition-all duration-300 flex items-center gap-2 font-poppins shadow-[0_2px_8px_rgba(107,44,145,0.3)] hover:bg-purple-light hover:translate-y-[-2px] hover:shadow-[0_4px_12px_rgba(107,44,145,0.4)] active:translate-y-0"
                           onClick={() => setIsGoogleMapOpen(true)}
                         >
                           Open Map
@@ -596,18 +590,19 @@ export default function Chatbot() {
             ))}
 
             {isLoading && (
-              <div className={`${styles.messageWrapper} ${styles.botMessage}`}>
-                <div className={styles.messageAvatar}>
+              <div className="flex gap-2 max-w-[85%] animate-fadeIn self-start">
+                <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center">
                   <img
                     src="/ayunew.png"
                     alt="Virtual Concierge"
+                    className="w-full h-full object-cover"
                   />
                 </div>
-                <div className={styles.messageBubble}>
-                  <div className={styles.typingIndicator}>
-                    <span></span>
-                    <span></span>
-                    <span></span>
+                <div className="py-3.5 px-5 rounded-[20px] shadow-[0_2px_8px_rgba(0,0,0,0.08)] relative bg-white text-neutral-700 rounded-[4px_20px_20px_20px] border border-neutral-300 before:content-[''] before:absolute before:left-[-8px] before:top-3 before:w-0 before:h-0 before:border-solid before:border-[0_8px_8px_0] before:border-transparent before:border-r-white before:[filter:drop-shadow(-1px_1px_1px_rgba(0,0,0,0.05))]">
+                  <div className="flex gap-1 py-1">
+                    <span className="w-2 h-2 rounded-full bg-purple-primary animate-typing"></span>
+                    <span className="w-2 h-2 rounded-full bg-purple-primary animate-typing [animation-delay:0.2s]"></span>
+                    <span className="w-2 h-2 rounded-full bg-purple-primary animate-typing [animation-delay:0.4s]"></span>
                   </div>
                 </div>
               </div>
@@ -617,10 +612,10 @@ export default function Chatbot() {
               </div>
 
               {/* Input Area */}
-              <div className={styles.inputContainer}>
+              <div className="flex gap-0 p-4 bg-white border-t border-neutral-300 rounded-b-2xl relative">
                 <input
                   type="text"
-                  className={styles.input}
+                  className="flex-1 py-3 pr-[50px] pl-5 border border-neutral-300 rounded-3xl text-sm outline-none transition-[border-color] duration-200 font-inter text-neutral-700 placeholder:text-neutral-500 placeholder:text-xs focus:border-purple-primary disabled:bg-neutral-100 disabled:cursor-not-allowed"
                   placeholder="Type your message here..."
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
@@ -628,7 +623,7 @@ export default function Chatbot() {
                   disabled={isLoading}
                 />
                 <button
-                  className={styles.sendButton}
+                  className="absolute right-6 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-transparent border-none text-purple-primary cursor-pointer flex items-center justify-center transition-all duration-200 flex-shrink-0 hover:text-purple-light hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed"
                   onClick={() => handleSendMessage()}
                   disabled={!inputValue.trim() || isLoading}
                   aria-label="Send message"

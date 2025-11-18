@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import styles from './HotelCarousel.module.css'
 
 interface Hotel {
   id: string
@@ -15,6 +14,7 @@ interface Hotel {
 interface HotelCarouselProps {
   hotels: Hotel[]
   onHotelSelect: (hotel: Hotel) => void
+  isMaximized?: boolean
 }
 
 const HOTELS_DATA: Hotel[] = [
@@ -60,7 +60,7 @@ const HOTELS_DATA: Hotel[] = [
   }
 ]
 
-export default function HotelCarousel({ hotels = HOTELS_DATA, onHotelSelect }: HotelCarouselProps) {
+export default function HotelCarousel({ hotels = HOTELS_DATA, onHotelSelect, isMaximized = false }: HotelCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
 
   const nextSlide = () => {
@@ -77,39 +77,90 @@ export default function HotelCarousel({ hotels = HOTELS_DATA, onHotelSelect }: H
 
   const currentHotel = hotels[currentIndex]
 
+  // Grid view for maximized mode
+  if (isMaximized) {
+    return (
+      <div className="w-full grid grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
+        {hotels.map((hotel) => (
+          <div key={hotel.id} className="bg-white rounded-xl overflow-hidden shadow-lg transition-all duration-300 flex flex-col group hover:shadow-xl hover:-translate-y-1">
+            <div className="relative w-full h-[160px] overflow-hidden flex-shrink-0">
+              <img
+                src={hotel.image || '/placeholder-hotel.jpg'}
+                alt={hotel.name}
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                onError={(e) => {
+                  e.currentTarget.src = '/placeholder-hotel.jpg'
+                }}
+              />
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
+                <span className="text-white text-[11px] font-medium font-inter">{hotel.location}</span>
+              </div>
+            </div>
+            <div className="p-3 flex-1 flex flex-col justify-between">
+              <h3 className="text-[13px] font-bold text-purple-primary mb-1 font-poppins leading-tight">
+                {hotel.name}
+              </h3>
+              <p className="text-[11px] text-neutral-600 mb-2 font-inter leading-tight">
+                {hotel.description || ''}
+              </p>
+              <div className="flex flex-wrap gap-1 mb-2 flex-1">
+                {hotel.highlights?.slice(0, 3).map((highlight, idx) => (
+                  <span key={idx} className="text-[9px] px-1.5 py-0.5 bg-purple-primary/10 text-purple-primary rounded font-semibold font-inter">
+                    {highlight}
+                  </span>
+                ))}
+              </div>
+              <button
+                className="w-full px-3 py-2 bg-gradient-to-br from-purple-primary to-purple-light text-white border-none rounded-skewed text-[11px] font-bold cursor-pointer transition-all duration-300 font-poppins uppercase tracking-wide mt-auto flex-shrink-0 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-purple-secondary/30 active:translate-y-0"
+                onClick={() => onHotelSelect(hotel)}
+              >
+                Book This Hotel
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // Carousel view for normal mode
   return (
-    <div className={styles.carouselContainer}>
-      <div className={styles.carousel}>
+    <div className="w-full max-w-full flex flex-col gap-3 px-1 min-h-[380px]">
+      <div className="relative w-full max-w-full overflow-hidden min-h-[350px]">
         {/* Hotel Card */}
-        <div className={styles.hotelCard}>
-          <div className={styles.imageContainer}>
+        <div className="bg-white rounded-xl overflow-hidden shadow-lg transition-transform duration-300 max-w-full min-h-[350px] flex flex-col group">
+          <div className="relative w-full h-[180px] md:h-[200px] overflow-hidden flex-shrink-0">
             <img
               src={currentHotel.image || '/placeholder-hotel.jpg'}
               alt={currentHotel.name}
-              className={styles.hotelImage}
+              className="w-full h-[180px] md:h-[200px] object-cover transition-transform duration-300 group-hover:scale-105"
               onError={(e) => {
                 e.currentTarget.src = '/placeholder-hotel.jpg'
               }}
             />
-            <div className={styles.imageOverlay}>
-              <span className={styles.hotelLocation}>{currentHotel.location}</span>
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-3">
+              <span className="text-white text-[11px] font-medium font-inter">{currentHotel.location}</span>
             </div>
           </div>
 
-          <div className={styles.cardContent}>
-            <h3 className={styles.hotelName}>{currentHotel.name}</h3>
-            <p className={styles.hotelDescription}>{currentHotel.description || ''}</p>
+          <div className="p-2.5 md:p-3.5 flex-1 flex flex-col justify-between">
+            <h3 className="text-[13px] md:text-base font-bold text-purple-primary mb-1 md:mb-1.5 font-poppins leading-tight">
+              {currentHotel.name}
+            </h3>
+            <p className="text-[11px] md:text-[13px] text-neutral-600 mb-2 md:mb-2.5 font-inter leading-tight">
+              {currentHotel.description || ''}
+            </p>
 
-            <div className={styles.highlights}>
+            <div className="flex flex-wrap gap-1 mb-2 flex-1">
               {currentHotel.highlights?.map((highlight, idx) => (
-                <span key={idx} className={styles.highlightBadge}>
+                <span key={idx} className="text-[9px] md:text-[10px] px-1.5 md:px-2 py-0.5 md:py-1 bg-purple-primary/10 text-purple-primary rounded font-semibold font-inter">
                   {highlight}
                 </span>
               ))}
             </div>
 
             <button
-              className={styles.selectButton}
+              className="w-full px-3 md:px-4 py-2 md:py-2.5 bg-gradient-to-br from-purple-primary to-purple-light text-white border-none rounded-skewed-sm md:rounded-skewed text-[11px] md:text-[13px] font-bold cursor-pointer transition-all duration-300 font-poppins uppercase tracking-wide mt-auto flex-shrink-0 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-purple-secondary/30 active:translate-y-0"
               onClick={() => onHotelSelect(currentHotel)}
             >
               Book This Hotel
@@ -119,32 +170,36 @@ export default function HotelCarousel({ hotels = HOTELS_DATA, onHotelSelect }: H
 
         {/* Navigation Arrows */}
         <button
-          className={`${styles.navButton} ${styles.prevButton}`}
+          className="absolute top-[40%] -translate-y-1/2 left-[-8px] md:left-2 bg-white/95 border-none w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 z-10 shadow-md text-purple-primary hover:bg-purple-primary hover:text-white hover:scale-110 active:scale-95"
           onClick={prevSlide}
           aria-label="Previous hotel"
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="md:w-[18px] md:h-[18px]">
             <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
         </button>
 
         <button
-          className={`${styles.navButton} ${styles.nextButton}`}
+          className="absolute top-[40%] -translate-y-1/2 right-[-8px] md:right-2 bg-white/95 border-none w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 z-10 shadow-md text-purple-primary hover:bg-purple-primary hover:text-white hover:scale-110 active:scale-95"
           onClick={nextSlide}
           aria-label="Next hotel"
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="md:w-[18px] md:h-[18px]">
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </button>
       </div>
 
       {/* Dots Indicator */}
-      <div className={styles.dotsContainer}>
+      <div className="flex justify-center gap-2 py-1">
         {hotels.map((_, index) => (
           <button
             key={index}
-            className={`${styles.dot} ${index === currentIndex ? styles.activeDot : ''}`}
+            className={`w-2 h-2 md:w-[9px] md:h-[9px] rounded-full border-none cursor-pointer transition-all duration-300 p-0 hover:bg-neutral-400 ${
+              index === currentIndex
+                ? 'bg-purple-primary w-6 md:w-[26px] rounded'
+                : 'bg-neutral-300'
+            }`}
             onClick={() => goToSlide(index)}
             aria-label={`Go to hotel ${index + 1}`}
           />
